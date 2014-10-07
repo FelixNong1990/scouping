@@ -1,0 +1,91 @@
+/* Black and White Colour Scheme */
+
+/* backgrounds */
+
+.header_main,
+.header_menu_res ul li.current-menu-parent > a, 
+.header_menu_res ul li.current-menu-item > a,
+.header_menu_res a.menu-toggle,
+.btn-topsearch,
+.button,
+.btn_orange, 
+.order-gateway input[type="submit"],
+.tabcontrol ul.tabnavig li a,
+.tabprice ul.tabnavig li a,
+.comment-reply-link, 
+#app-attachment-upload-pickfiles, 
+#app-attachment-upload-filelist .app-attachment .button, 
+.home .paging > a, 
+.footer .bar {
+	background-color:#000000;
+}
+
+.btn-topsearch:hover,
+.button:hover,
+.btn_orange:hover, 
+.order-gateway input[type="submit"]:hover,
+.comment-reply-link:hover, 
+#app-attachment-upload-pickfiles:hover, 
+#app-attachment-upload-filelist .app-attachment .button:hover, 
+.home .paging > a:hover {
+	background-color:#2e2e2e;
+}
+
+.header_menu {
+	background-color:#2e2e2e;
+}
+
+/* text and links */
+a,
+.post-block .post-right h3 a,
+.content_right ul li a,
+.header_top_res ul.menu ul.sub-menu li a:hover,
+div#adv_categories .catcol ul li.maincat > a {
+	color:#000000;
+}
+
+.bigright ul li span, 
+#breadcrumb a,
+ul.refine label.title, 
+.form_contact label, .content_right ul li a:hover {
+	color:#4CA837;
+}
+
+/* borders */
+.footer,
+#block1, 
+#block2, 
+#block3, 
+#priceblock1, 
+#priceblock2, 
+#priceblock3 {
+	border-color:#000000;
+}
+
+/* paging */
+.paging .pages span.current {
+	background:#000000;
+	-moz-box-shadow: 0 2px 0 -1px #9EE28E;
+	-webkit-box-shadow: 0 2px 0 -1px #9EE28E;
+	-khtml-box-shadow 0 2px 0 -1px #9EE28E;
+	box-shadow: 0 2px 0 -1px #9EE28E;
+    border: 1px solid #9EE28E;
+}
+
+/* reverse colours */
+p.post-price {
+	background-color:#F45435;
+}
+
+span.price_sm {
+	color:#F45435;
+}
+
+/* responsive */	
+@media screen and (max-width: 800px) {
+
+	.header_menu_res ul.menu li a {
+		background-color:#000000;
+	}
+	
+}

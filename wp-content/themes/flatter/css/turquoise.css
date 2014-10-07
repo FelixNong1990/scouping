@@ -1,0 +1,62 @@
+/* Turquoise Colour Scheme */
+
+/* backgrounds */
+
+#header .holder-logo, 
+.header_menu_res ul li.active a, 
+.header_menu_res a.menu-toggle,
+.btn,
+.order-gateway input[type="submit"], 
+.reports_submit, 
+.comment-reply-link, 
+.subscribe-form .btn-submit, 
+#footer .bar {
+	background-color:#1ABC9C;
+}
+
+.btn:hover,
+.btn.zeroclipboard-is-hover, 
+.order-gateway input[type="submit"]:hover, 
+.reports_submit:hover, 
+.comment-reply-link:hover, 
+.subscribe-form .btn-submit:hover  {
+	background-color:#24CCAA;
+}
+
+.header_menu {
+	background-color:#16A085;
+}
+
+/* text and links */
+a,
+#header .panel ul.menu ul.sub-menu li a:hover, 
+div.adv_taxonomies .catcol ul li.maincat > a{
+	color:#1ABC9C;
+}
+
+/* borders */
+#footer, #footer .panel .box, #footer .panel .sidebox {
+	border-color:#1ABC9C;
+}
+
+/* paging and share coupon widget */
+.content-box .paging .pages span.current, #sidebar .share-box {
+	background:#1ABC9C;
+	-moz-box-shadow: 0 2px 0 -1px #39E5C3;
+	-webkit-box-shadow: 0 2px 0 -1px #39E5C3;
+	-khtml-box-shadow 0 2px 0 -1px #39E5C3;
+	box-shadow: 0 2px 0 -1px #39E5C3;
+    border: 1px solid #39E5C3;
+}
+
+/* reverse colours */
+
+
+/* responsive */	
+@media screen and (max-width: 800px) {
+
+	.header_menu_res ul.menu li a {
+		background-color:#1ABC9C;
+	}
+	
+}

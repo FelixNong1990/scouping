@@ -1,0 +1,69 @@
+/* Bronze Colour Scheme */
+
+/* backgrounds */
+
+#header .holder-logo, 
+.header_menu_res ul li.active a, 
+.header_menu_res a.menu-toggle,
+.btn,
+.order-gateway input[type="submit"], 
+.reports_submit, 
+.comment-reply-link, 
+.subscribe-form .btn-submit, 
+#footer .bar {
+	background-color:#E2691D;
+}
+
+.btn:hover,
+.btn.zeroclipboard-is-hover, 
+.order-gateway input[type="submit"]:hover, 
+.reports_submit:hover, 
+.comment-reply-link:hover, 
+.subscribe-form .btn-submit:hover  {
+	background-color:#EA7933;
+}
+
+.header_menu {
+	background-color:#D35400;
+}
+
+/* text and links */
+a,
+#header .panel ul.menu ul.sub-menu li a:hover, 
+div.adv_taxonomies .catcol ul li.maincat > a{
+	color:#E2691D;
+}
+
+/* borders */
+#footer, #footer .panel .box, #footer .panel .sidebox {
+	border-color:#E2691D;
+}
+
+/* paging and share coupon widget */
+.content-box .paging .pages span.current, #sidebar .share-box {
+	background:#E2691D;
+	-moz-box-shadow: 0 2px 0 -1px #F29257;
+	-webkit-box-shadow: 0 2px 0 -1px #F29257;
+	-khtml-box-shadow 0 2px 0 -1px #F29257;
+	box-shadow: 0 2px 0 -1px #F29257;
+    border: 1px solid #F29257;
+}
+
+/* reverse colours */
+
+.header_menu_res .obtn {
+	background-color:#FC6D26;
+}
+
+.header_menu_res .obtn:hover {
+	background-color:#F97639;
+}
+
+/* responsive */	
+@media screen and (max-width: 800px) {
+
+	.header_menu_res ul.menu li a {
+		background-color:#E2691D;
+	}
+	
+}

@@ -1,0 +1,302 @@
+/***********************************
+Datepicker
+***********************************/
+input[type="text"].datepicker{
+    background-repeat: no-repeat;
+    background-image: url('data:image/gif;base64,R0lGODlhEAAQANU7AP///2xsbFtbW35+foCAgJCQkHNzc7i4uHBwcPX19X9/f4yMjG1tbaCgoNfX1/Ly8uDg4PT09Hl5ee3t7WNjY3x8fJSUlGlpaejo6F5eXnZ2dvj4+OPj42VlZV1dXWZmZrW1tfDw8Onp6dPT0/f399vb28/Pz/b29oeHh2BgYNra2urq6tbW1svLy+7u7s7OzvHx8djY2MbGxs3Nzefn59zc3HV1dcLCwt7e3tnZ2Y6OjgAAAAAAAAAAAAAAAAAAACH5BAEAADsALAAAAAAQABAAAAatwJ1wZygKi4ahcodIIITNp5JAZQAY1SuVIBwcDovN4hseHwbCCqih6CgabHcDVBFKLIO8fm+RCDUADxEnCQ+ChA8AGkcAIjIBBTAYLzYFIQBJTAAmAZAhnJAuAFIBABwkkCunkCIAAUIXAA4TkDQxtAUYABdCHwAsDgEoKjXBKCMAH0IUADedATotz6UUQikAMyUQOA4j2hA5AClCHgDm5+jmHkIZAu7v8O4ZO0EAOw==');
+    background-position: 4px 2px;
+    padding: 4px 8px 3px 26px
+}
+
+.toggle.status-toggle{
+    width: 100px;
+    line-height: 28px;
+    -webkit-border-radius: 3px;
+       -moz-border-radius: 3px;
+        -ms-border-radius: 3px;
+         -o-border-radius: 3px;
+            border-radius: 3px;
+    -webkit-background-clip: padding-box;
+       -moz-background-clip: padding;
+        -ms-background-clip: padding;
+         -o-background-clip: padding;
+            background-clip: padding-box;
+    -webkit-user-select: none;
+       -moz-user-select: none;
+        -ms-user-select: none;
+         -o-user-select: none;
+            user-select: none;
+}
+.toggle.status-toggle p{
+    line-height: 26px;
+    font-size: 1.1em;
+}
+
+/*
+ * CSS TOGGLE SWITCHES
+ * Unlicense
+ *
+ * Ionuț Colceriu - ghinda.net
+ * https://github.com/ghinda/css-toggle-switch
+ *
+ */
+/* Hide by default */
+.toggle p span {
+  display: none;
+}
+
+/* Toggle Switches */
+/* We can't test for a specific feature,
+ * so we only target browsers with support for media queries.
+ */
+@media only screen {
+  /* Checkbox
+   */
+  .toggle {
+    position: relative;
+    padding: 0;
+  }
+
+  /* Position the label over all the elements, except the slide-button
+   * Clicking anywhere on the label will change the switch-state
+   */
+  .toggle label {
+    position: relative;
+    z-index: 3;
+    display: block;
+    width: 100%;
+  }
+
+  /* Don't hide the input from screen-readers and keyboard access
+   */
+  .toggle input {
+    position: absolute;
+    opacity: 0;
+    z-index: 5;
+  }
+
+  .toggle p {
+    position: absolute;
+    left: -100px;
+    width: 100%;
+    margin: 0;
+    padding-right: 100px;
+    text-align: left;
+  }
+
+  .toggle p span {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 5;
+    display: block;
+    width: 50%;
+    margin-left: 100px;
+    text-align: center;
+  }
+
+  .toggle p span:last-child {
+    left: 50%;
+  }
+
+  .toggle .slide-button {
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 4;
+    display: block;
+    width: 50%;
+    height: 100%;
+    padding: 0;
+  }
+
+
+  /* Shared */
+  .toggle{
+    display: inline-block;
+    height: 30px;
+  }
+
+  .toggle * {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -ms-box-sizing: border-box;
+    -o-box-sizing: border-box;
+    box-sizing: border-box;
+  }
+
+  .toggle .slide-button {
+    display: block;
+    -webkit-transition: all 100ms ease-out;
+    -moz-transition: all 100ms ease-out;
+    -ms-transition: all 100ms ease-out;
+    -o-transition: all 100ms ease-out;
+    transition: all 100ms ease-out;
+  }
+
+  .toggle label,
+  .toggle p,{
+    line-height: 30px;
+    vertical-align: middle;
+  }
+
+  .toggle input:checked ~ .slide-button {
+    right: 50%;
+  }
+
+  /* Outline the toggles when the inputs are focused */
+  .toggle input:focus ~ .slide-button{
+    outline: 1px dotted #888;
+  }
+
+  /* Bugfix for older Webkit, including mobile Webkit. Adapted from:
+   * http://css-tricks.com/webkit-sibling-bug/
+   */
+.toggle {
+    -webkit-animation: bugfix infinite 1s;
+  }
+
+  @-webkit-keyframes bugfix {
+    from {
+      position: relative;
+    }
+
+    to {
+      position: relative;
+    }
+}
+
+  /* Android Theme
+   * Based on Holo
+   */
+  .android {
+    background-color: #b6b6b6;
+    color: #fff;
+  }
+
+  .android.toggle {
+    border: 2px solid #b6b6b6;
+  }
+
+  .android.switch {
+    overflow: hidden;
+  }
+
+  .android.switch .slide-button {
+    background-color: #279fca;
+    -webkit-transform: skew(20deg) translateX(10px);
+    -moz-transform: skew(20deg) translateX(10px);
+    -ms-transform: skew(20deg) translateX(10px);
+    -o-transform: skew(20deg) translateX(10px);
+    transform: skew(20deg);
+  }
+
+  .android.toggle .slide-button {
+    border-radius: 2px;
+    background-color: #848484;
+  }
+
+  /* Selected ON toggle */
+  .android.toggle input:first-of-type:checked ~ .slide-button {
+    background-color: #279fca;
+  }
+
+  .android.switch input:first-of-type:checked ~ .slide-button {
+    -webkit-transform: skew(20deg) translateX(-10px);
+    -moz-transform: skew(20deg) translateX(-10px);
+    -ms-transform: skew(20deg) translateX(-10px);
+    -o-transform: skew(20deg) translateX(-10px);
+    transform: skew(20deg) translateX(-10px);
+  }
+
+  .android p {
+    color: #333;
+  }
+
+  .android span {
+    color: #fff;
+  }
+
+  .android.switch,
+  .android span {
+    text-transform: uppercase;
+  }
+}
+
+.preview_url{
+  margin-left: 20px;
+}
+.custom_preview_image {
+  max-width: 200px;
+  height: auto;
+  border: 1px solid #cecece;
+  margin-top: 1em;
+  border-radius: 4px;
+}
+
+.nebulus_general_settings .form-table tr:nth-child(3),
+.nebulus_general_settings .form-table tr:nth-child(4),
+.nebulus_general_settings .form-table tr:nth-child(8),
+.nebulus_general_settings .form-table tr:nth-child(13),
+.nebulus_general_settings .form-table tr:nth-child(16),
+.nebulus_general_settings .form-table tr:nth-child(17),
+.nebulus_social_settings .form-table tr:nth-child(12){
+  border-bottom: 1px solid #ececec;
+}
+.wp-nebulus-wrap{
+  position: relative;
+}
+
+.wp-nebulus-wrap .form-table th,
+.wp-nebulus-wrap .form-table td{
+  padding: 24px 10px
+}
+
+.decodigo-support{
+  background: #f1f1f1;
+  background-image: -webkit-gradient(linear,left bottom,left top,from(#ececec),to(#f9f9f9));
+  background-image: -webkit-linear-gradient(bottom,#ececec,#f9f9f9);
+  background-image: -moz-linear-gradient(bottom,#ececec,#f9f9f9);
+  background-image: -o-linear-gradient(bottom,#ececec,#f9f9f9);
+  background-image: linear-gradient(to top,#ececec,#f9f9f9);
+  position: absolute;
+  right: 0;
+  top: 5em;
+  width: 200px;
+  height: auto;
+  border: 1px solid #ccc;
+  border-bottom-color: #aaa;
+  padding: 1.8em 1em;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 11px;
+  box-shadow: inset 0 1px 0 #fff;
+  text-shadow: 0 1px 0 #fff;
+}
+.brand-link{
+  display: block;
+  font-size: 14px;
+  font-weight: bold;
+  color: #000;
+  text-decoration: none;
+}
+.brand-link:hover img{
+  opacity: 0.8;
+  filter: alpha(opacity=80);
+}
+.brand-link span{
+  display: block;
+}
+
+/* css for timepicker */
+.ui-timepicker-div .ui-widget-header { margin-bottom: 8px; }
+.ui-timepicker-div dl { text-align: left; }
+.ui-timepicker-div dl dt { float: left; clear:left; padding: 0 0 0 5px; }
+.ui-timepicker-div dl dd { margin: 0 10px 10px 45%; }
+.ui-timepicker-div td { font-size: 90%; }
+.ui-tpicker-grid-label { background: none; border: none; margin: 0; padding: 0; }
+
+.ui-timepicker-rtl{ direction: rtl; }
+.ui-timepicker-rtl dl { text-align: right; padding: 0 5px 0 0; }
+.ui-timepicker-rtl dl dt{ float: right; clear: right; }
+.ui-timepicker-rtl dl dd { margin: 0 45% 10px 10px; }

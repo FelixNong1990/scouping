@@ -1,0 +1,1 @@
+[05-Oct-2014 09:15:28 UTC] PHP Warning:  Cannot modify header information - headers already sent by (output started at /home/gamevein/public_html/scouping.com/wp-content/advanced-cache.php:23) in /home/gamevein/public_html/scouping.com/wp-includes/pluggable.php on line 1173

@@ -1,0 +1,45 @@
+v1.2.4
+- Compatible with WP 3.8
+- Added option to hide footer
+- Fixed potential mailchimp error
+- Fixed bug with the_content hook.
+
+v1.2.3
+- Fixed but with custom images not showing up in IE
+- Fixed issue with custom background color
+
+v1.2.2
+- More control of custom background image
+- Fixed issue with Mailchimp Error message
+
+v1.2.1
+- Added 503 Header option for SEO
+- Added Google Analytics Integration
+- Fixed issue with Linked In social link
+
+v1.2.0
+- Added Access tab and options
+- IP Whitelist
+- Roles Whitelist
+
+v1.1.3
+- Added option for button text
+- Added option for below form text
+- Updated documentation
+
+v1.1.2
+- Fixing PHP warning when there are no tweets to display
+
+v1.1.1
+- Add option to hide Twitter and insert optional 3rd column.
+- Hide timer option
+- Catches errors if twitter fails
+
+v1.1.0
+- prevent conflict with other Twitter oAuth Plugins.
+- Auto show website on launch date and time
+- adding time option to date
+- custom css option
+
+v1.0.0
+- initial release
