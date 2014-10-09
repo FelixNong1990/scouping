@@ -16,14 +16,14 @@ $url_out = clpr_get_store_out_url( $term );
 				<div class="text-box">
 
 					<div class="thumb-wrap">
-						<a href="<?php echo $url_out; ?>"><img class="store-thumb" src="<?php echo clpr_get_store_image_url( $term->term_id, 'term_id', 150 ); ?>" alt="" /></a>
+						<a rel="nofollow" href="<?php echo $url_out; ?>"><img class="store-thumb" src="<?php echo clpr_get_store_image_url( $term->term_id, 'term_id', 150 ); ?>" alt="" /></a>
 					</div>
 
 					<div class="info">
 						<a class="rss-link" href="<?php echo get_term_feed_link($term->term_id, $taxonomy); ?>" rel="nofollow" target="_blank"><?php _e( 'Store RSS', APP_TD ); ?></a>
 						<h1><?php echo $term->name; ?></h1>
 						<div class="desc"><?php echo term_description(); ?></div>
-						<p class="store-url"><a href="<?php echo $url_out; ?>" target="_blank"><?php echo $stores_url; ?></a></p>
+						<p class="store-url"><a rel="nofollow" href="<?php echo $url_out; ?>" target="_blank"><?php echo $stores_url; ?></a></p>
 					</div> <!-- #info -->
 
 				</div> <!-- #text-box -->

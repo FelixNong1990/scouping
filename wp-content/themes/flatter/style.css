@@ -130,7 +130,7 @@ input[type="text"], input[type="password"], input[type="email"], select, textare
 	margin-top:0;  
 	margin-bottom:10px;  
 	padding:8px 12px;  
-	width:350px; 
+	width:450px; 
 	-khtml-border-radius: 4px; 
 	-moz-border-radius: 4px; 
 	-webkit-border-radius: 4px; 
@@ -2553,7 +2553,8 @@ li.captcha div.invalid {
 .post-box textarea#coupon,
 .post-box textarea#description,
 li.description textarea {
-	width:100%;
+	/* width:100%; */
+	width: 450px;
 	max-width:410px;
 	color:#000;
 	-moz-border-radius:4px;
@@ -2634,6 +2635,7 @@ button.submit {
 }
 button.coupon {
 	float:right;
+	margin-right: 50px;
 }
 button.reg,
 button.forgot,
@@ -5085,9 +5087,9 @@ body.blog .sidebox {
 	margin-top: 0;
 }
 
-#content li.description textarea {
+/* #content li.description textarea {
 	margin: 20px 0 0 40px;
-}
+} */
 
 body #content .content-box .blog.cf {
 	padding: 0;
@@ -5246,6 +5248,7 @@ span.vote {
 
 #couponForm li p.comment-form-captcha #comment_captcha_code {
 	margin-top: 15px;
+	width: 350px;
 }
 
 #couponForm li p.comment-form-captcha label, #couponForm li p.comment-form-captcha img, #couponForm li p.comment-form-captcha #comment_captcha_code {
@@ -5356,4 +5359,8 @@ div.thankyou .text-box, div.thankyou .text-holder {
 p.suc_message {
 	font-size: 15px;
 	color: #555;
+}
+
+#couponForm .required_field {
+	color: #790000;
 }

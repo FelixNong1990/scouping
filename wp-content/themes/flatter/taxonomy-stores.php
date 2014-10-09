@@ -19,7 +19,7 @@ $url_out = clpr_get_store_out_url( $term );
 
 						<div class="store-holder">
 							<div class="store-image">
-								<a href="<?php echo $url_out; ?>"><img class="store-thumb" src="<?php echo fl_get_store_image_url($term->term_id, 'term_id', '180'); ?>" alt="" /></a>
+								<a rel="nofollow" href="<?php echo $url_out; ?>"><img class="store-thumb" src="<?php echo fl_get_store_image_url($term->term_id, 'term_id', '180'); ?>" alt="" /></a>
 							</div>
 						</div>
 

@@ -1,0 +1,3 @@
+- Remove inactive store added by guests
+- Never expired coupon code
+- Bulk accept the coupons from guests

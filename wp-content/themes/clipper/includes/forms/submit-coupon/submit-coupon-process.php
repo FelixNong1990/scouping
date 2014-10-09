@@ -23,6 +23,7 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
 		'clpr_store_name',
 		'clpr_new_store_name',
 		'clpr_new_store_url',
+		'clpr_new_store_description',
 		'cat',
 		'coupon_type_select',
 		'clpr_coupon_code',
@@ -217,7 +218,10 @@ if ( $_SERVER['REQUEST_METHOD'] == 'POST' ) {
 			$term = get_term_by('name', $posted['clpr_new_store_name'], APP_TAX_STORE);
 			//$clpr_new_store_url = apply_filters( 'pre_user_url', $posted['clpr_new_store_url'] );
 			clpr_update_store_meta( $term->term_id, 'clpr_store_url', apply_filters( 'pre_user_url', $posted['clpr_new_store_url'] ) );
-
+			//wp_update_term( $term->term_id, 'description', $posted['clpr_new_store_description']);
+			wp_update_term($term->term_id, 'stores', array(
+				'description' => $posted['clpr_new_store_description']
+			));
 			// check if new stores require moderation before going live
 			if ( $clpr_options->stores_require_moderation )
 				clpr_update_store_meta( $term->term_id, 'clpr_store_active', 'no' );

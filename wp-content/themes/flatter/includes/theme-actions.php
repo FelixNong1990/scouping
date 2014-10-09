@@ -553,12 +553,12 @@ function fl_do_coupon_form( $post ) {
 		
 		<ol>
 			<li>
-				<label><?php _e( 'Coupon Title:', APP_TD ); ?> </label>
+				<label><?php _e( 'Coupon Title', APP_TD ); ?> <span class="required_field">*</span></label>
 				<input type="text" class="text required" id="post_title" name="post_title" value="<?php echo esc_attr( $field['post_title'] ); ?>" />
 			</li>
 			
 			<li>
-				<label><?php _e( 'Store:', APP_TD ); ?></label>
+				<label><?php _e( 'Store', APP_TD ); ?> <span class="required_field">*</span></label>
 				<select id="store_name_select" name="clpr_store_name" class="text required">
 					<option value=""><?php _e( '-- Select One --', APP_TD ); ?></option>
 					<option value="add-new"><?php _e( 'Add New Store', APP_TD ); ?></option>
@@ -575,17 +575,22 @@ function fl_do_coupon_form( $post ) {
 			</li>
 			
 			<li id="new-store-name" class="new-store">
-				<label><?php _e( 'New Store Name:', APP_TD ); ?></label>
+				<label><?php _e( 'New Store Name', APP_TD ); ?> <span class="required_field">*</span></label>
 				<input type="text" class="text" name="clpr_new_store_name" value="<?php echo esc_attr( $field['clpr_new_store_name'] ); ?>"/>
 			</li>
 			
 			<li id="new-store-url" class="new-store">
-				<label><?php _e( 'New Store URL:', APP_TD ); ?> </label>
+				<label><?php _e( 'New Store URL', APP_TD ); ?> <span class="required_field">*</span></label>
 				<input type="text" class="text" id="clpr_new_store_url" name="clpr_new_store_url" value="<?php echo ( ! empty( $field['clpr_new_store_url'] ) ? esc_attr( $field['clpr_new_store_url'] ) : 'http://' ); ?>" />
 			</li>
 			
+			<li id="new-store-description" class="new-store">
+				<label><?php _e( 'New Store Description', APP_TD ); ?> </label>
+				<textarea cols="30" rows="8" class="text" id="clpr_new_store_description" name="clpr_new_store_description"><?php echo esc_attr( $field['clpr_new_store_description'] ); ?></textarea>
+			</li>
+			
 			<li>
-				<label><?php _e( 'Coupon Category:', APP_TD ); ?> </label>
+				<label><?php _e( 'Coupon Category', APP_TD ); ?> <span class="required_field">*</span></label>
 				<?php
 					$args = array( 'taxonomy' => APP_TAX_CAT, 'selected' => $field['cat'], 'hierarchical' => 1, 'class' => 'text required', 'show_option_none' => __( '-- Select One --', APP_TD ), 'hide_empty' => 0, 'echo' => 0 );
 					$select = wp_dropdown_categories( $args );
@@ -595,7 +600,7 @@ function fl_do_coupon_form( $post ) {
 			</li>
 			
 			<li>
-				<label><?php _e( 'Coupon Type:', APP_TD ); ?> </label>
+				<label><?php _e( 'Coupon Type', APP_TD ); ?> <span class="required_field">*</span></label>
 				<select id="coupon_type_select" name="coupon_type_select" class="text required">
 					<option value=""><?php _e( '-- Select One --', APP_TD ); ?></option>
 					<?php
@@ -609,40 +614,40 @@ function fl_do_coupon_form( $post ) {
 			</li>
 			
 			<li id="ctype-coupon-code" class="ctype">
-				<label><?php _e( 'Coupon Code:', APP_TD ); ?> </label>
+				<label><?php _e( 'Coupon Code', APP_TD ); ?> <span class="required_field">*</span></label>
 				<input type="text" class="text" id="ctype-coupon-code" name="clpr_coupon_code" value="<?php echo esc_attr( $field['clpr_coupon_code'] ); ?>"/>
 			</li>
 			
 			<?php if ( $post && clpr_has_printable_coupon( $post->ID ) ) { ?>
 				<li id="ctype-printable-coupon-preview" class="ctype">
-					<label><?php _e( 'Current Coupon:', APP_TD ); ?> </label>
+					<label><?php _e( 'Current Coupon', APP_TD ); ?> <span class="required_field">*</span></label>
 					<?php echo clpr_get_printable_coupon( $post->ID ); ?>
 				</li>
 			<?php } ?>
 			
 			<li id="ctype-printable-coupon" class="ctype">
-				<label><?php _e( 'Printed Coupon:', APP_TD ); ?> </label>
+				<label><?php _e( 'Printed Coupon', APP_TD ); ?> <span class="required_field">*</span></label>
 				<input type="file" class="fileupload text" name="coupon-upload" value="<?php echo esc_attr( $field['coupon-upload'] ); ?>" />
 			</li>
 			
 			<li>
-				<label><?php _e( 'Destination URL:', APP_TD ); ?></label>
+				<label><?php _e( 'Destination URL', APP_TD ); ?> <span class="required_field">*</span></label>
 				<input type="text" class="text required" name="clpr_coupon_aff_url" value="<?php echo esc_attr( $field['clpr_coupon_aff_url'] ); ?>"/>
 			</li>
 			
 			<li>
-				<label><?php _e( 'Expiration Date:', APP_TD ); ?> </label>
+				<label><?php _e( 'Expiration Date', APP_TD ); ?> <span class="required_field">*</span></label>
 				<input type="text" class="text required datepicker" name="clpr_expire_date" value="<?php echo esc_attr( $field['clpr_expire_date'] ); ?>" />
 			</li>
 			
 			<li>
-				<label><?php _e( 'Tags:', APP_TD ); ?> </label>
+				<label><?php _e( 'Tags', APP_TD ); ?> </label>
 				<input type="text" class="text" name="tags_input" value="<?php echo esc_attr( $field['tags_input'] ); ?>" />
 				<p class="tip"><?php _e( 'Separate tags with commas', APP_TD ); ?></p>
 			</li>
 			
 			<li class="description">
-				<label for="post_content"><?php _e( 'Full Description:', APP_TD ); ?> </label>
+				<label for="post_content"><?php _e( 'Coupon Description', APP_TD ); ?> <span class="required_field">*</span></label>
 				<?php if ( $clpr_options->allow_html && ! wp_is_mobile() ) { ?>
 					<?php wp_editor( $field['post_content'], 'post_content', clpr_get_editor_settings() ); ?>
 				<?php } else { ?>
@@ -690,7 +695,7 @@ function fl_do_coupon_form( $post ) {
 					$comment_captcha->base = array( '6', '18' );
 
 					// Set Comment Form Options
-					$comment_captcha_form_label = 'Human Verification';
+					$comment_captcha_form_label = 'Verification code';
 
 					/********************************************************************
 					* Nothing else to edit.  No configurable options below this point.  *
