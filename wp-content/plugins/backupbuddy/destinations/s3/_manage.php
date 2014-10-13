@@ -10,7 +10,7 @@
 		
 		jQuery( '.pb_backupbuddy_hoveraction_copy' ).click( function() {
 			var backup_file = jQuery(this).attr( 'rel' );
-			var backup_url = '<?php echo pb_backupbuddy::page_url(); ?>&custom=remoteclient&destination_id=<?php echo pb_backupbuddy::_GET( 'destination_id' ); ?>&remote_path=<?php echo htmlentities( pb_backupbuddy::_GET( 'remote_path' ) ); ?>&copy_file=' + backup_file;
+			var backup_url = '<?php echo pb_backupbuddy::page_url(); ?>&custom=remoteclient&destination_id=<?php echo pb_backupbuddy::_GET( 'destination_id' ); ?>&remote_path=<?php echo htmlentities( pb_backupbuddy::_GET( 'remote_path' ) ); ?>&cpy_file=' + backup_file;
 			
 			window.location.href = backup_url;
 			
@@ -96,14 +96,16 @@ if ( pb_backupbuddy::_POST( 'bulk_action' ) == 'delete_backup' ) {
 	if ( count( $deleted_files ) > 0 ) {
 		pb_backupbuddy::alert( 'Deleted ' . implode( ', ', $deleted_files ) . '.' );
 	}
+	echo '<br>';
 }
 
 
 // Handle copying files to local
-if ( pb_backupbuddy::_GET( 'copy_file' ) != '' ) {
-	pb_backupbuddy::alert( sprintf( _x('The remote file is now being copied to your %1$slocal backups%2$s', '%1$s and %2$s are open and close <a> tags', 'it-l10n-backupbuddy' ), '<a href="' . pb_backupbuddy::page_url() . '">', '</a>.<br>If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.' ) );
+if ( pb_backupbuddy::_GET( 'cpy_file' ) != '' ) {
+	pb_backupbuddy::alert( 'The remote file is now being copied to your local backups. If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.' );
+	echo '<br>';
 	pb_backupbuddy::status( 'details',  'Scheduling Cron for creating S3 copy.' );
-	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_remote_copy' ), array( 's3', pb_backupbuddy::_GET( 'copy_file' ), $settings ) );
+	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_remote_copy' ), array( 's3', pb_backupbuddy::_GET( 'cpy_file' ), $settings ) );
 	spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 	update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 }
@@ -113,6 +115,7 @@ if ( pb_backupbuddy::_GET( 'copy_file' ) != '' ) {
 if ( pb_backupbuddy::_GET( 'downloadlink_file' ) != '' ) {
 	$link = $s3->get_object( $manage_data['bucket'], $remote_path . pb_backupbuddy::_GET( 'downloadlink_file' ), array('preauth'=>time()+3600));
 	pb_backupbuddy::alert( 'You may download this backup (' . pb_backupbuddy::_GET( 'downloadlink_file' ) . ') with <a href="' . $link . '">this link</a>. The link is valid for one hour.' );
+	echo '<br>';
 }
 
 $prefix = backupbuddy_core::backup_prefix();
@@ -180,6 +183,7 @@ foreach( $backup_list_temp as $backup_item ) {
 }
 unset( $backup_list_temp );
 
+$urlPrefix = pb_backupbuddy::ajax_url( 'remoteClient' ) . '&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) );
 
 // Render table listing files.
 if ( count( $backup_list ) == 0 ) {
@@ -190,9 +194,9 @@ if ( count( $backup_list ) == 0 ) {
 	pb_backupbuddy::$ui->list_table(
 		$backup_list,
 		array(
-			'action'		=>	pb_backupbuddy::page_url() . '&custom=remoteclient&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) ) . '&remote_path=' . htmlentities( pb_backupbuddy::_GET( 'remote_path' ) ),
+			'action'		=>	pb_backupbuddy::ajax_url( 'remoteClient' ) . '&function=remoteClient&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) ) . '&remote_path=' . htmlentities( pb_backupbuddy::_GET( 'remote_path' ) ),
 			'columns'		=>	array( 'Backup File', 'Uploaded <img src="' . pb_backupbuddy::plugin_url() . '/images/sort_down.png" style="vertical-align: 0px;" title="Sorted most recent first">', 'File Size', 'Type' ),
-			'hover_actions'	=>	array( 'copy' => 'Copy to Local', 'download_link' => 'Get download link' ),
+			'hover_actions'	=>	array( $urlPrefix . '&cpy_file=' => 'Copy to Local', $urlPrefix . '&downloadlink_file=' => 'Get download link' ),
 			'hover_action_column_key'	=>	'0',
 			'bulk_actions'	=>	array( 'delete_backup' => 'Delete' ),
 			'css'			=>		'width: 100%;',

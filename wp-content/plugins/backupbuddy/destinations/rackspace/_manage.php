@@ -1,7 +1,6 @@
 <?php
-pb_backupbuddy::$ui->title( 'Rackspace Cloudfiles' );
-
-echo '<h3>Viewing `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
+//pb_backupbuddy::$ui->title( 'Rackspace Cloudfiles' );
+//echo '<h3>Viewing `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
 	
 	// Rackspace information
 	$rs_username = $destination['username'];
@@ -20,7 +19,13 @@ echo '<h3>Viewing `' . $destination['title'] . '` (' . $destination['type'] . ')
 	require_once( pb_backupbuddy::plugin_path() . '/destinations/rackspace/lib/rackspace/cloudfiles.php');
 	$auth = new CF_Authentication( $rs_username, $rs_api_key, NULL, $rs_server );
 	$auth->authenticate();
+	
+	try {
 	$conn = new CF_Connection( $auth );
+	} catch (Exception $e) {
+		echo 'Error #847834: Exception caught accessing Rackspace. If this persists try deleting (by selecting the configure destination button) & re-creating this destination. Details: `' . $e->getMessage() . '`.';
+		die();
+	}
 	
 	// Set container
 	$container = @$conn->get_container($rs_container);
@@ -41,13 +46,15 @@ echo '<h3>Viewing `' . $destination['title'] . '` (' . $destination['type'] . ')
 		if ( $delete_count > 0 ) {
 			pb_backupbuddy::alert( sprintf( _n('Deleted %d file', 'Deleted %d files', $delete_count, 'it-l10n-backupbuddy' ), $delete_count) );
 		}
+		echo '<br>';
 	}
 	
 	// Copy Rackspace backup to the local backup files
-	if ( !empty( $_GET['copy_file'] ) ) {
-		pb_backupbuddy::alert( sprintf( _x('The remote file is now being copied to your %1$slocal backups%2$s', '%1$s and %2$s are open and close <a> tags', 'it-l10n-backupbuddy' ), '<a href="' . pb_backupbuddy::page_url() . '">', '</a>.' ) );
+	if ( !empty( $_GET['cpy_file'] ) ) {
+		pb_backupbuddy::alert( 'The remote file is now being copied to your local backups. If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.' );
+		echo '<br>';
 		pb_backupbuddy::status( 'details',  'Scheduling Cron for creating Rackspace copy.' );
-		backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_rackspace_copy' ), array( $_GET['copy_file'], $rs_username, $rs_api_key, $rs_container, $rs_server ) );
+		backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_rackspace_copy' ), array( $_GET['cpy_file'], $rs_username, $rs_api_key, $rs_container, $rs_server ) );
 		spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 		update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 	}
@@ -61,9 +68,11 @@ echo '<h3>Viewing `' . $destination['title'] . '` (' . $destination['type'] . ')
 		$results = $container->get_objects( 0, NULL, 'backup-');
 	/* } */
 
+
+$urlPrefix = pb_backupbuddy::ajax_url( 'remoteClient' ) . '&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) );
 ?>
 <div style="max-width: 950px;">
-	<form id="posts-filter" enctype="multipart/form-data" method="post" action="<?php echo pb_backupbuddy::page_url() . '&custom=' . $_GET['custom'] . '&destination_id=' . $_GET['destination_id'];?>">
+	<form id="posts-filter" enctype="multipart/form-data" method="post" action="<?php echo $urlPrefix; ?>">
 		<div class="tablenav">
 			<div class="alignleft actions">
 				<input type="submit" name="delete_file" value="Delete from Rackspace" class="button-secondary delete" />
@@ -111,7 +120,7 @@ echo '<h3>Viewing `' . $destination['title'] . '` (' . $destination['type'] . ')
 								<?php echo pb_backupbuddy::$format->file_size( $backup->content_length ); ?>
 							</td>
 							<td>
-								<?php echo '<a href="' . pb_backupbuddy::page_url() . '&custom=' . $_GET['custom'] . '&destination_id=' . $_GET['destination_id'] . '&#38;copy_file=' . $backup->name . '">Copy to local</a>'; ?>
+								<?php echo '<a href="' . $urlPrefix . '&#38;cpy_file=' . $backup->name . '">Copy to local</a>'; ?>
 							</td>
 						</tr>
 						<?php

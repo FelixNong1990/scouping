@@ -52,7 +52,7 @@ if ( $listing_mode == 'restore_migrate' ) {
 	$hover_actions[pb_backupbuddy::ajax_url( 'download_archive' ) . '&backupbuddy_backup='] = __( 'Download', 'it-l10n-backupbuddy' );
 	$hover_actions['send'] = 'Send';
 	$hover_actions['page=pb_backupbuddy_backup&zip_viewer'] = __( 'Browse & Restore Files', 'it-l10n-backupbuddy' );
-	$hover_actions['rollback'] = __( 'Database Rollback', 'it-l10n-backupbuddy' ) . ' (BETA)';
+	$hover_actions['rollback'] = __( 'Database Rollback', 'it-l10n-backupbuddy' );
 	$hover_actions['migrate'] = __( 'Migrate', 'it-l10n-backupbuddy' );
 	$hover_actions['note'] = __( 'Note', 'it-l10n-backupbuddy' );
 	$bulk_actions = array();
@@ -75,7 +75,7 @@ if ( count( $backups ) == 0 ) {
 } else {
 	
 	$columns = array(
-		__('Backups', 'it-l10n-backupbuddy' ) . ' <img src="' . pb_backupbuddy::plugin_url() . '/images/sort_down.png" style="vertical-align: 0px;" title="Sorted most recent first">',
+		__('Local Backups', 'it-l10n-backupbuddy' ) . ' <img src="' . pb_backupbuddy::plugin_url() . '/images/sort_down.png" style="vertical-align: 0px;" title="Sorted most recent first">',
 		__('Type', 'it-l10n-backupbuddy' ) . ' | ' . __('Profile', 'it-l10n-backupbuddy' ),
 		__('File Size', 'it-l10n-backupbuddy' ),
 		__('Status', 'it-l10n-backupbuddy' ) . pb_backupbuddy::tip( __('Backups are checked to verify that they are valid BackupBuddy backups and contain all of the key backup components needed to restore. Backups may display as invalid until they are completed. Click the refresh icon to re-verify the archive.', 'it-l10n-backupbuddy' ), '', false ),

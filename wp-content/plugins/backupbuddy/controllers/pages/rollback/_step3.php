@@ -4,7 +4,6 @@ if ( ! current_user_can( pb_backupbuddy::$options['role_access'] ) ) {
 	die( 'Error #473623. Access Denied.' );
 }
 //pb_backupbuddy::verify_nonce();
-pb_backupbuddy::load_script( 'jquery' );
 
 
 $restoreData = unserialize( base64_decode( pb_backupbuddy::_POST( 'restoreData' ) ) );
@@ -34,7 +33,7 @@ the rollback to revert your site to its prior condition.
 
 
 
-<form method="post" action="?action=pb_backupbuddy_rollback&step=4&archive=<?php echo basename( $restoreData['archive'] ); ?>">
+<form method="post" action="?action=pb_backupbuddy_backupbuddy&function=rollback&step=4&archive=<?php echo basename( $restoreData['archive'] ); ?>">
 	<?php pb_backupbuddy::nonce(); ?>
 	<input type="hidden" name="restoreData" value="<?php echo base64_encode( serialize( $restoreData ) ); ?>">
 	<input type="submit" name="submit" id="submitForm" class="button button-primary" value="<?php echo __( "Accept Rollback - Everything looks good", 'it-l10n-backupbuddy' ); ?>">

@@ -2,7 +2,7 @@
 	border: 1px solid #CFCFCF;
 	-moz-border-radius:25px; /* Firefox 3.6 and earlier */
 	
-	height: 275px;
+	height: 475px;
 	overflow: scroll;
 	padding-left: 6px;
 	padding-right: 6px;
@@ -28,25 +28,6 @@
 .messages_error_link,.messages_error_link:active {
 	color: #13455B;
 }
-
-#backupbuddy_errors_notice {
-	background: #FF8989;
-	-moz-border-radius: 5px;
-	border-radius: 4px;
-	text-align: center;
-	font-size: 1.45em;
-	padding: 10px;
-	margin-top: 7px;
-	margin-bottom: 30px;
-	//display: inline-block;
-	width: 775px;
-	display: none;
-}
-#backupbuddy_errors_notice_subtext {
-	font-size: .75em;
-	padding-top: 3px;
-}
-
 
 
 .pb_backupbuddy_status {

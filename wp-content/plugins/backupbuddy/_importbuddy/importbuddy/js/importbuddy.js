@@ -8,7 +8,7 @@ jQuery(document).ready(function() {
 	});
 });
 
-jQuery(document).ready(function() {
+function loadTooltips() {
 	jQuery('.pluginbuddy_tip').tooltip({
 		track: true,
 		delay: 0,
@@ -16,6 +16,10 @@ jQuery(document).ready(function() {
 		showBody: " - ",
 		fade: 250
 	});
+}
+
+jQuery(document).ready(function() {
+	loadTooltips();
 	
 	jQuery('.toggle').click(function(e) {
 		jQuery( '#toggle-' + jQuery(this).attr('id') ).slideToggle();

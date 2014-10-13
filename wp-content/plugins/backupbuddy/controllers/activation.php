@@ -1,8 +1,10 @@
 <?php
-
 // Any code in this file will be run upon plugin activation. NOTHING should be echo here or it will break activation.
 // TODO: Set up proper data structure migration based on the structure version. This is a temporary approach. Sorry.
 
+if ( ( ! isset( pb_backupbuddy::$options ) ) || empty( pb_backupbuddy::$options ) ) { // Make sure options are loaded if possible.
+	pb_backupbuddy::load();
+}
 
 
 
@@ -94,7 +96,7 @@ if ( $upgrade_options != false ) {
 	
 	delete_option( 'ithemes-backupbuddy' );
 }
-
+unset( $upgrade_options );
 pb_backupbuddy::save();
 
 $old_log_file = WP_CONTENT_DIR . '/uploads/backupbuddy.txt';
@@ -177,6 +179,7 @@ foreach( pb_backupbuddy::$options['remote_destinations'] as $destination ) {
 if ( $needs_saving === true ) {
 	pb_backupbuddy::save();
 }
+unset( $needs_saving );
 // ********** END 3.0.43 -> 3.1 DATA MIGRATION **********
 
 
@@ -347,8 +350,4 @@ if ( ! @file_exists( $s3_config ) ) {
 	}
 }
 unset( $s3_config );
-unset( $s3_config_status );
 
-
-
-?>

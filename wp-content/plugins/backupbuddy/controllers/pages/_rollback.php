@@ -1,7 +1,9 @@
 <?php
+pb_backupbuddy::load_script( 'rollbackEvents.js' );
+
 pb_backupbuddy::$ui->title(
 	__( 'Database Rollback', 'it-l10n-backupbuddy' ) .
-	' &nbsp;&nbsp; <a style="font-size: 0.6em;" href="#" onClick="jQuery(\'#pb_backupbuddy_status_wrap\').toggle();">Show / Hide Advanced Status Details</a>'
+	' &nbsp;&nbsp; <a style="font-size: 0.6em;" href="#" onClick="jQuery(\'#pb_backupbuddy_status_wrap\').toggle();">Display Status Log</a>'
 ); ?>
 
 <script>
@@ -35,16 +37,134 @@ pb_backupbuddy::status( 'details', 'BackupBuddy v' . pb_backupbuddy::settings( '
 
 
 <script type="text/javascript">
-	function pb_status_append( status_string ) {
-		target_id = 'pb_backupbuddy_status'; // importbuddy_status or pb_backupbuddy_status
-		if( jQuery( '#' + target_id ).length == 0 ) { // No status box yet so suppress.
-			return;
+	var statusBox; // Make global.
+	var backupbuddy_errors_encountered = 0; // number of errors sent via log.
+	
+	rollback_loadRestoreEvents();
+	
+	function backupbuddy_hourpad(n) { return ("0" + n).slice(-2); }
+	
+	function pb_status_append( json ) {
+		if( 'undefined' === typeof statusBox ) { // No status box yet so may need to create it.
+			statusBox = jQuery( '#pb_backupbuddy_status' );
+			if( statusBox.length == 0 ) { // No status box yet so suppress.
+				return;
+			}
 		}
-		jQuery( '#' + target_id ).append( "\n" + status_string );
-		textareaelem = document.getElementById( target_id );
-		textareaelem.scrollTop = textareaelem.scrollHeight;
+		
+		// Used in BackupBuddy _backup-perform.php and ImportBuddy _header.php
+		json.date = new Date();
+		json.date = new Date(  ( json.time * 1000 ) + json.date.getTimezoneOffset() * 60000 );
+		var seconds = json.date.getSeconds();
+		if ( seconds < 10 ) {
+			seconds = '0' + seconds;
+		}
+		json.date = backupbuddy_hourpad( json.date.getHours() ) + ':' + json.date.getMinutes() + ':' + seconds;
+		
+		triggerEvent = 'backupbuddy_' + json.event;
+		
+		
+		// Log non-text events.
+		if ( ( 'details' !== json.event ) && ( 'message' !== json.event ) && ( 'error' !== json.event ) ) {
+			//console.log( 'Non-text event `' + triggerEvent + '`.' );
+		} else {
+			//console.log( json.data );
+		}
+		//console.log( 'trigger: ' + triggerEvent );
+		
+		jQuery('#pb_backupbuddy_status').trigger( triggerEvent, [json] );
+		
+		
+	} // End function pb_status_append().
+	
+	// Used in BackupBuddy _backup-perform.php and ImportBuddy _header.php and _rollback.php
+	function backupbuddy_log( json ) {
+		
+		message = '';
+		
+		if ( 'string' == ( typeof json ) ) {
+			message = "-----------\t\t-------\t-------\t" + json;
+		} else {
+			message = json.date + '.' + json.u + " \t" + json.run + "sec \t" + json.mem + "MB\t" + json.data;
+		}
+
+		statusBox.append( "\r\n" + message );
+		statusBox.scrollTop( statusBox[0].scrollHeight - statusBox.height() );
+		
 	}
+	
+	// Trigger an error to be logged, displayed, etc.
+	// Returns updated message with trouble URL, etc.
+	// Used in BackupBuddy _backup-perform.php and ImportBuddy _header.php
+	function backupbuddyError( message ) {
+
+		// Get start of any error numbers.
+		troubleURL = '';
+		error_number_begin = message.toLowerCase().indexOf( 'error #' );
+
+		if ( error_number_begin >= 0 ) {
+			error_number_begin += 7; // Shift over index to after 'error #'.
+			error_number_end = message.toLowerCase().indexOf( ':', error_number_begin );
+			if ( error_number_end < 0 ) { // End still not found.
+				error_number_end = message.toLowerCase().indexOf( '.', error_number_begin );
+			}
+			if ( error_number_end < 0 ) { // End still not found.
+				error_number_end = message.toLowerCase().indexOf( ' ', error_number_begin );
+			}
+			error_number = message.slice( error_number_begin, error_number_end );
+			troubleURL = 'http://ithemes.com/codex/page/BackupBuddy:_Error_Codes#' + error_number;
+		}
+
+		if ( '' !== troubleURL ) {
+			// Display error in error div with class error_alert_box.
+			message = message + ' <a href="' + troubleURL + '" target="_new">Click to <b>view error details</b> in the Knowledge Base</a>';
+		}
+		jQuery( '.backupbuddy_error_list' ).append( '<li>' +  message + '</li>' );
+		jQuery( '.error_alert_box' ).show();
+
+		// Display error box to make it clear errors were encountered.
+		backupbuddy_errors_encountered++;
+		jQuery( '#backupbuddy_errors_notice_count' ).text( backupbuddy_errors_encountered );
+		jQuery( '#backupbuddy_errors_notice' ).slideDown();
+
+		// If the word error is nowhere in the error message then add in error prefix.
+		if ( message.toLowerCase().indexOf( 'error' ) < 0 ) {
+			message = 'ERROR: ' + message;
+		}
+
+
+		return message; // Return updated error message with trouble URL.
+	} // end backupbuddyError().
+
+
+	// Used in BackupBuddy _backup-perform.php and ImportBuddy _header.php
+	function backupbuddyWarning( message ) {
+		jQuery( '.backupbuddy_warning_list' ).append( '<li>' +  message + '</li>' );
+		//jQuery( '.warning_alert_box' ).show();
+		return 'Warning: ' + message;
+	} // end backupbuddyWarning().
 </script>
+<style>
+	.error_alert_box {
+		border-left: 3px solid red;
+		background: rgb(255, 200, 200);
+		max-height: 500px;
+		overflow: scroll;
+	}
+	.error_alert_title {
+		display: block;
+	}
+	.backupbudy_error_list {
+		font-size: 14px;
+	}
+</style>
+
+<div class="error_alert_box" style="display: none;">
+	<span class="error_alert_title">Error(s) - See Status Log for details</span>
+	<ul class="backupbuddy_error_list">
+		<!-- <li>Error #123onlyAtest: An error has happened. This is a test.</li> -->
+	</ul>
+</div>
 
 
 <div id="message" style="display: none; padding: 9px;" rel="" class="pb_backupbuddy_alert updated fade below-h2">

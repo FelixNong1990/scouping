@@ -4,7 +4,7 @@
  *	Plugin Name: BackupBuddy
  *	Plugin URI: http://ithemes.com/purchase/backupbuddy/
  *	Description: The most complete WordPress solution for Backup, Restoration, and Migration. Backs up a customizable selection of files, settings, and content for the complete snapshot of your site. Restore and/or migrate your site to a new host or new domain with complete ease-of-mind.
- *	Version: 4.2.15.6
+ *	Version: 5.0.3.3
  *	Author: iThemes
  *	Author URI: http://ithemes.com/
  *	iThemes Package: backupbuddy
@@ -53,16 +53,19 @@ $pluginbuddy_settings = array(
 												'delete_archives_pre_backup'		=>		0,					// Whether or not to delete all backups prior to backing up.
 												'lock_archives_directory'			=>		0,					// Whether or not to lock archives directory via htaccess and lift lock temporarily for download.
 												
-												'email_notify_scheduled_start'             => '',					// Email address(es) to send to when a scheduled backup begins.
+												'email_notify_scheduled_start'             => '',				// Email address(es) to send to when a scheduled backup begins.
 												'email_notify_scheduled_start_subject'     => 'BackupBuddy Scheduled Backup Started - {site_url}',
 												'email_notify_scheduled_start_body'	       => "A scheduled backup has started with BackupBuddy v{backupbuddy_version} on {current_datetime} for the site {site_url}.\n\nDetails:\r\n\r\n{message}",
-												'email_notify_scheduled_complete'          => '',					// Email address(es) to send to when a scheduled backup completes.
+												'email_notify_scheduled_complete'          => '',				// Email address(es) to send to when a scheduled backup completes.
 												'email_notify_scheduled_complete_subject'  => 'BackupBuddy Scheduled Backup Complete - {site_url}',
 												'email_notify_scheduled_complete_body'     => "A scheduled backup has completed with BackupBuddy v{backupbuddy_version} on {current_datetime} for the site {site_url}.\n\nDetails:\r\n\r\n{message}",
-												'email_notify_error'                       => '',					// Email address(es) to send to when an error is encountered.
+												'email_notify_send_finish'                 => '',				// Email address(es) to send to when a send finishes.
+												'email_notify_send_finish_subject'         => 'BackupBuddy File Send Finished - {site_url}',
+												'email_notify_send_finish_body'            => "A destination file send has finished with BackupBuddy v{backupbuddy_version} on {current_datetime} for the site {site_url}.\n\nDetails:\r\n\r\n{message}",
+												'email_notify_error'                       => '',				// Email address(es) to send to when an error is encountered.
 												'email_notify_error_subject'               => 'BackupBuddy Error - {site_url}',
 												'email_notify_error_body'                  => "An error occurred with BackupBuddy v{backupbuddy_version} on {current_datetime} for the site {site_url}. Error details:\r\n\r\n{message}",
-												'email_return'								=> '',				// Return email address for emails sent. Defaults to admin email if none specified.
+												'email_return'                             => '',				// Return email address for emails sent. Defaults to admin email if none specified.
 												
 												'remote_destinations'				=>		array(),			// Array of remote destinations (S3, Rackspace, email, ftp, etc)
 												'role_access'						=>		'activate_plugins',	// Default role access to the plugin.
@@ -74,7 +77,8 @@ $pluginbuddy_settings = array(
 												'log_directory'						=>		'',					// Custom log directory. Also holds fileoptions. BLANK for default.
 												'log_serial'						=>		'',					// Current log serial to send all output to. Used during backups.
 												'notifications'						=>		array(),			// TODO: currently not used.
-												'zip_method_strategy'				=>		'0',				// 0 = Not Set, 1 = Best Available, 2 = All Available, 3 = Force Compatibility.
+												'zip_method_strategy'				=>		'1',				// 0 = Not Set, 1 = Best Available, 2 = All Available, 3 = Force Compatibility.
+												'database_method_strategy'			=>		'php',				// php, mysqldump, all
 												'alternative_zip_2'					=>		'0',				// Alternative zip system (Jeremy).
 												'ignore_zip_warnings'				=>		'0',				// Ignore non-fatal zip warnings during the zip process (ie symlink, cant read file, etc).
 												'ignore_zip_symlinks'				=>		'1',				// When enabled (1) zip will not-follow (zip utility) or ignore (pclzip) any symbolic links
@@ -83,6 +87,9 @@ $pluginbuddy_settings = array(
 												'disable_https_local_ssl_verify'	=>		'0',				// When enabled (1) disabled WordPress from verifying SSL certificates for loopbacks, etc.
 												'save_comment_meta'					=>		'1',				// When enabled (1) meta data will not be stored in backups during creation.
 												'ignore_command_length_check'		=>		'0',				// When enabled, the command line length result provided by the OS will be ignored. Sometimes we cannot reliably get it.
+												'default_backup_tab'				=>		'0',				// Default tab to have open on backup page. Useful for advanced used to change.
+												'deployment_allowed'				=>		'0',				// Whether or not this site accepts pushing/pulling of site data via Stash. 0 = disabled, 1 = enabled.
+												'api_key'							=>		'',					// API key for allowing other BB installations to manage this BB, or use deployments.
 												'stats'								=>		array(
 																								'site_size'				=>		0,
 																								'site_size_excluded'	=>		0,
@@ -92,7 +99,7 @@ $pluginbuddy_settings = array(
 																								'db_size_updated'		=>		0,
 																							),
 												'disalerts'							=>		array(),			// Array of alerts that have been dismissed/hidden.
-												'breakout_tables'					=>		'0',				// Whether or not to breakout some tables into individual steps (for sites with larger dbs).
+												'breakout_tables'					=>		'1',				// Whether or not to breakout some tables into individual steps (for sites with larger dbs). DEFAULT: enabled as of v5.0.
 												'include_importbuddy'				=>		'1',				// Whether or not to include importbuddy.php script inside backup ZIP file.
 												'max_site_log_size'					=>		'5',				// Size in MB to clear the log file if it is exceeded.
 												'compression'						=>		'1',				// Zip compression.
@@ -102,6 +109,9 @@ $pluginbuddy_settings = array(
 												'rollback_cleanups'					=>		array(),			// Array of rollback serial => time() pairs to run cleanups on, such as dropping temporary undo tables. Run X hours after the timestamp.
 												'phpmysqldump_maxrows'				=>		'',					// When in mysqldump compatibility mode, maximum number of rows to dump per select. Blank uses default.
 												'disable_localization'				=>		'0',				// 0=localization enabled, 1=disabled. Useful when troubleshooting and unable to read localized log.
+												'max_execution_time'				=>		'',					// Maximum amount of time allowed per PHP process when chunking is enabled.
+												'backup_cron_rescheduling'			=>		'0',				// When enabled BB will attempt to reschedule missing cronjobs for proceeding during a manual backup. Possibly useful if the cron for the next step is going missing.
+												'deployments'						=>		array(),
 												'profiles'							=>		array(
 																								0 => array(
 																													'type'							=>		'defaults',
@@ -124,6 +134,10 @@ $pluginbuddy_settings = array(
 																												),
 																							),
 											),
+				'deployment_defaults'		=>	array(
+													'siteurl'						=>		'',
+													'api_key'						=>		'',
+												),
 				'profile_defaults'			=>	array(
 													'type'							=>		'',						// defaults, db, or full
 													'title'							=>		'',						// Friendly title/name.
@@ -195,5 +209,8 @@ function ithemes_backupbuddy_updater_register( $updater ) {
     $updater->register( 'backupbuddy', __FILE__ );
 }
 add_action( 'ithemes_updater_register', 'ithemes_backupbuddy_updater_register' );
-require( dirname( __FILE__ ) . '/lib/updater/load.php' );
+$updater = dirname( __FILE__ ) . '/lib/updater/load.php';
+if ( file_exists( $updater ) ) {
+	require( $updater );
+}
 ?>

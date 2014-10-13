@@ -84,9 +84,25 @@ if ( isset( $this->advanced_options['skip_database_import'] ) && ( $this->advanc
 	require_once( pb_backupbuddy::plugin_path() . '/lib/mysqlbuddy/mysqlbuddy.php' );
 	pb_backupbuddy::$classes['mysqlbuddy'] = new pb_backupbuddy_mysqlbuddy( DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, $options['db_prefix'] );
 	pb_backupbuddy::flush();
-	$import_result = pb_backupbuddy::$classes['mysqlbuddy']->import( $options['database_directory'] . 'db_1.sql', $options['old_prefix'], $db_continue, true );
-	pb_backupbuddy::flush();
 	
+	$db_files = glob( $options['database_directory'] . '*.sql' );
+	if ( ! is_array( $db_files ) ) {
+		$db_files = array();
+	}
+	foreach( $db_files as $db_file ) {
+		$import_result = pb_backupbuddy::$classes['mysqlbuddy']->import( $db_file, $options['old_prefix'], $db_continue, true );
+		pb_backupbuddy::flush();
+		if ( true === $import_result ) {
+			pb_backupbuddy::status( 'details', 'Success importing SQL file `' . $db_file . '`.' );
+			continue;
+		} elseif ( false === $import_result ) {
+			pb_backupbuddy::status( 'error', 'Error #384733: Failure importing SQL file `' . $db_file . '`.' );
+			die();
+		} else {
+			pb_backupbuddy::status( 'error', 'Error #4378464: The import likely was about to timeout and required chunking but this is not yet available for Multisite. Failure importing SQL file `' . $db_file . '`.' );
+			die();
+		}
+	}
 	$this->status( 'details', 'Actual import done.' );
 }
 

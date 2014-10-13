@@ -59,8 +59,7 @@ $settings_form->add_setting( array(
 	'name'		=>		'secretkey',
 	'title'		=>		__( 'AWS secret key', 'it-l10n-backupbuddy' ),
 	'tip'		=>		__( '[Example: GHOIDDWE56SDSAZXMOPR] - Log in to your Amazon S3 AWS Account and navigate to Account: Access Credentials: Security Credentials.', 'it-l10n-backupbuddy' ),
-	'after'		=>		' <a href="https://aws-portal.amazon.com/gp/aws/developer/account/index.html?ie=UTF8&action=access-key" target="_blank" title="' . __('Opens a new tab where you can get your Amazon S3 key', 'it-l10n-backupbuddy' ) . '"><small>' . __('Get Key', 'it-l10n-backupbuddy' ) . '</small></a>',
-	'css'		=>		'width: 212px;',
+	'after'		=>		'',
 	'rules'		=>		'required|string[1-45]',
 ) );
 
@@ -70,7 +69,6 @@ $settings_form->add_setting( array(
 	'title'		=>		__( 'Bucket name', 'it-l10n-backupbuddy' ),
 	'tip'		=>		__( '[Example: wordpress_backups] - This bucket will be created for you automatically if it does not already exist. Bucket names must be globally unique amongst all Amazon S3 users.', 'it-l10n-backupbuddy' ),
 	'after'		=>		'',
-	'css'		=>		'width: 255px;',
 	'rules'		=>		'required|string[1-500]',
 ) );
 
@@ -88,6 +86,10 @@ $settings_form->add_setting( array(
 								's3-ap-southeast-2.amazonaws.com'	=>		'Asia Pacific (Sydney)',
 								's3-ap-northeast-1.amazonaws.com'	=>		'Asia Pacific (Tokyo)',
 								's3-sa-east-1.amazonaws.com'		=>		'South America (Sao Paulo)',
+								
+								's3-us-gov-west-1.amazonaws.com'			=>		'US GovCloud',
+								's3-fips-us-gov-west-1.amazonaws.com'		=>		'US GovCloud (FIPS 140-2)',
+								's3-website-us-gov-west-1.amazonaws.com'	=>		'US GovCloud (website)',
 							),
 	'tip'		=>		__('[Default: US Standard] - Determines the region where NEW buckets will be created (if any). If your bucket already exists then it will NOT be modified.', 'it-l10n-backupbuddy' ),
 	'rules'		=>		'required',
@@ -142,3 +144,26 @@ $settings_form->add_setting( array(
 	'after'		=>		'<span class="description"> ' . __('Enable connecting over SSL.', 'it-l10n-backupbuddy' ) . '<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* Files are always encrypted with AES256 upon arrival at S3.</span>',
 	'rules'		=>		'',
 ) );
+$settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'use_packaged_cert',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__( 'Use included CA bundle', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: disabled] - When enabled, BackupBuddy will use its own bundled SSL certificate bundle for connecting to the server. Use this if SSL fails due to SSL certificate issues with your server.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __('Use included certificate bundle.', 'it-l10n-backupbuddy' ) . '</span>',
+	'rules'		=>		'',
+) );
+
+
+if ( $mode !== 'edit' ) {
+	$settings_form->add_setting( array(
+		'type'		=>		'checkbox',
+		'name'		=>		'disable_file_management',
+		'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+		'title'		=>		__( 'Disable file management', 'it-l10n-backupbuddy' ),
+		'tip'		=>		__( '[Default: unchecked] - When checked, selecting this destination disables browsing or accessing files stored at this destination from within BackupBuddy.', 'it-l10n-backupbuddy' ),
+		'css'		=>		'',
+		'rules'		=>		'',
+	) );
+}

@@ -64,7 +64,6 @@ if ( !defined( 'PB_IMPORTBUDDY' ) ) { // NOT IN IMPORTBUDDY:
 		$default_tab = pb_backupbuddy::_GET( 'tab' );
 	}
 	
-	echo '';
 	pb_backupbuddy::$ui->start_tabs(
 		'getting_started',
 		array(

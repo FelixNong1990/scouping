@@ -28,4 +28,3 @@ $settings_form->add_setting( array(
 	'tip'		=>		__( '[Example: your@email.com] - Email address for this destination.', 'it-l10n-backupbuddy' ),
 	'rules'		=>		'required|email',
 ) );
-

@@ -4,7 +4,6 @@ if ( ! current_user_can( pb_backupbuddy::$options['role_access'] ) ) {
 	die( 'Error #473623. Access Denied.' );
 }
 //pb_backupbuddy::verify_nonce();
-pb_backupbuddy::load_script( 'jquery' );
 
 
 $restoreData = unserialize( base64_decode( pb_backupbuddy::_POST( 'restoreData' ) ) );
@@ -17,13 +16,22 @@ if ( '1' == pb_backupbuddy::_POST( 'forceMysqlCompatibility' ) ) {
 	$restoreData['forceMysqlMethods'] = array( 'php' );
 }
 
+$restoreData['restoreDatabase'] = true;
+$restoreData['restoreFiles'] = false;
+$restoreData['restoreFileRoot'] = $restoreData['tempPath'];
+
+if ( '2' == pb_backupbuddy::$options['zip_method_strategy'] ) {
+	$restoreData['zipMethodStrategy'] = 'all';
+} else {
+	$restoreData['zipMethodStrategy'] = pb_backupbuddy::$options['zip_method_strategy'];
+}
 
 // Instantiate rollback.
 require_once( pb_backupbuddy::plugin_path() . '/classes/restore.php' );
 $rollback = new backupbuddy_restore( 'rollback', $restoreData );
 
 
-$status = $rollback->extractDatabase();
+$status = $rollback->restoreFiles();
 if ( false === $status ) {
 	$errors = $rollback->getErrors();
 	if ( count( $errors ) > 0 ) {
@@ -31,6 +39,17 @@ if ( false === $status ) {
 	}
 	return;
 }
+
+
+$status = $rollback->determineDatabaseFiles();
+if ( false === $status ) {
+	$errors = $rollback->getErrors();
+	if ( count( $errors ) > 0 ) {
+		pb_backupbuddy::alert( 'Errors were encountered: ' . implode( ', ', $errors ) . ' If seeking support please click to Show Advanced Details above and provide a copy of the log.' );
+	}
+	return;
+}
+
 
 $restoreData = $rollback->getState();
 ?>
@@ -55,7 +74,7 @@ $restoreData = $rollback->getState();
 <?php } ?>
 
 
-<form id="pb_backupbuddy_rollback_form" method="post" action="?action=pb_backupbuddy_rollback&step=2&archive=<?php echo basename( $restoreData['archive'] ); ?>">
+<form id="pb_backupbuddy_rollback_form" method="post" action="?action=pb_backupbuddy_backupbuddy&function=rollback&step=2&archive=<?php echo basename( $restoreData['archive'] ); ?>">
 	<?php pb_backupbuddy::nonce(); ?>
 	<input type="hidden" name="restoreData" value="<?php echo base64_encode( serialize( $restoreData ) ); ?>">
 	<input type="submit" name="submitForm" class="button button-primary" value="<?php echo __('Next Step') . ' &raquo;'; ?>">

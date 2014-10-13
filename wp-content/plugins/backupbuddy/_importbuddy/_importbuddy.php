@@ -9,6 +9,7 @@
  */
 
 $php_minimum = '5.1'; // User's PHP must be equal or newer to this version.
+//error_reporting( E_ALL );
 
 if ( version_compare( PHP_VERSION, $php_minimum ) < 0 ) {
 	die( 'ERROR #9013. See <a href="http://ithemes.com/codex/page/BackupBuddy:_Error_Codes#9013">this codex page for details</a>. Sorry! PHP version ' . $php_minimum . ' or newer is required for BackupBuddy to properly run. You are running PHP version ' . PHP_VERSION . '.' );
@@ -35,7 +36,7 @@ if (
 	( isset( $_GET['step'] ) && is_numeric( $_GET['step'] ) && ( $_GET['step'] < 5 ) )
 	)
 {
-	if ( ! file_exists( ABSPATH . 'index.htm' ) ) {
+	if ( ( ! file_exists( ABSPATH . 'index.htm' ) ) && ( ! file_exists( ABSPATH . 'index.php' ) ) ) {
 		@file_put_contents( ABSPATH . 'index.htm', '<html></html>' );
 	}
 }

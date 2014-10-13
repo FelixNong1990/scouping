@@ -78,6 +78,8 @@ if ( pb_backupbuddy::_GET( 'callback_data' ) == 'importbuddy.php' ) {
 	pb_backupbuddy::alert( '<span id="pb_backupbuddy_ib_sent">Sending ImportBuddy file. This may take several seconds. Please wait ...</span>' );
 	pb_backupbuddy::flush();
 	
+	pb_backupbuddy::anti_directory_browsing( backupbuddy_core::getTempDirectory(), $die = false );
+	
 	$importbuddy_file = backupbuddy_core::getTempDirectory() . 'importbuddy.php';
 	
 	// Render ImportBuddy to temp location.

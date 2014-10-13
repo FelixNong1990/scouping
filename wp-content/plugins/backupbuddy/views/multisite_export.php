@@ -56,13 +56,13 @@ if ( $wpdb->prefix == $wpdb->base_prefix ) {
 		
 	});
 	
-	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data ) {
+	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after, mode ) {
 		if ( callback_data != '' ) {
 			jQuery.post( '<?php echo pb_backupbuddy::ajax_url( 'remote_send' ); ?>', { destination_id: destination_id, destination_title: destination_title, file: callback_data, trigger: 'manual' }, 
 				function(data) {
 					data = jQuery.trim( data );
 					if ( data.charAt(0) != '1' ) {
-						alert( '<?php _e('Error starting remote send', 'it-l10n-backupbuddy' );?>:' + "\n\n" + data );
+						alert( '<?php _e("Error starting remote send", 'it-l10n-backupbuddy' );?>:' + "\n\n" + data );
 					} else {
 						alert( "<?php _e('Your file has been scheduled to be sent now. It should arrive shortly.', 'it-l10n-backupbuddy' ); ?> <?php _e( 'You will be notified by email if any problems are encountered.', 'it-l10n-backupbuddy' ); ?>" + "\n\n" + data.slice(1) );
 					}

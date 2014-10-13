@@ -3,7 +3,8 @@
 	height: 16px;
 }
 .form-table input[type=checkbox]:checked:before {
-	margin: -7px;
+	margin-top: -3px;
+	margin-left: -4px;
 }
 .form-table input[type=radio]:checked:before {
 	margin: 3px;
@@ -11,4 +12,4 @@
 
 .form-table input {
 	display: inline-block !important;
-}
+}.form-table input[type=checkbox]:checked:before {

@@ -24,7 +24,7 @@ class Ithemes_Sync_Verb_Backupbuddy_Get_Overview extends Ithemes_Sync_Verb {
 		}
 		
 		
-		$overview = backupbuddy_api0::getOverview();
+		$overview = backupbuddy_api::getOverview();
 		
 		
 		// If archive file is set but actual file does not exist then clear out value.
@@ -34,7 +34,7 @@ class Ithemes_Sync_Verb_Backupbuddy_Get_Overview extends Ithemes_Sync_Verb {
 
 
 		return array(
-			'version' => '4',
+			'version' => '5',
 			'status' => 'ok',
 			'message' => 'Overview retrieved successfully.',
 			'overview' => $overview,

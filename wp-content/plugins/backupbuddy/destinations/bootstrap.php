@@ -18,6 +18,7 @@ class pb_backupbuddy_destinations {
 	private static $_destination_info_defaults = array(
 		'name'			=>		'{Err_3448}',
 		'description'	=>		'{Err_4586. Unknown destination type.}',
+		'disable_file_management' => '0',
 	);
 	
 	
@@ -113,8 +114,9 @@ class pb_backupbuddy_destinations {
 	
 	// returns settings form object. false on error.
 	// mode = add, edit, or save
-	public static function configure( $destination_settings, $mode ) {
+	public static function configure( $destination_settings, $mode, $destination_id = '' ) {
 		
+		//$destination_id = $destination_settings['id']; 
 		pb_backupbuddy::status( 'details', 'Configuring destination.' );
 		if ( false === ( $destination = self::_init_destination( $destination_settings ) ) ) {
 			$error = '{Error #546893498ac. Destination configuration file missing.}';
@@ -126,7 +128,7 @@ class pb_backupbuddy_destinations {
 		$destination_settings = $destination['settings']; // Settings with defaults applied, normalized, etc.
 		//$destination_info = $destination['info'];
 		
-		$settings_form = new pb_backupbuddy_settings( 'settings', $destination_settings, 'sending=' . pb_backupbuddy::_GET( 'sending' ) );
+		$settings_form = new pb_backupbuddy_settings( 'settings', $destination_settings, pb_backupbuddy::ajax_url( 'destination_picker' ) . '&destination_id=' . $destination_id . '&sending=' . pb_backupbuddy::_GET( 'sending' ) );
 		$settings_form->add_setting( array(
 			'type'		=>		'hidden',
 			'name'		=>		'type',
@@ -159,8 +161,13 @@ class pb_backupbuddy_destinations {
 			return false;
 		}
 		
-		$destination_settings = $destination['settings']; // Settings with defaults applied, normalized, etc.
+		$destination_settings = array_merge( self::$_destination_info_defaults, $destination['settings'] ); // Noramlize defaults.
 		$destination_info = $destination['info'];
+		
+		if ( '0' != $destination_settings['disable_file_management'] ) {
+			_e( 'Remote file management has been disabled for this destination. Its files cannot be viewed & managed from within BackupBuddy. To re-enable you must create a new destination.', 'it-l10n-backupbuddy' );
+			return false;
+		}
 		
 		$manage_file = pb_backupbuddy::plugin_path() . '/destinations/' . $destination_settings['type'] . '/_manage.php';
 		if ( file_exists( $manage_file ) ) {
@@ -168,7 +175,8 @@ class pb_backupbuddy_destinations {
 			require( $manage_file ); // Incoming variables available to manage file: $destination
 			return true;
 		} else {
-			_e( 'A remote destination client is not available for this destination. Its files cannot be viewed & managed from within BackupBuddy.', 'it-l10n-backupbuddy' );
+			echo '<br><br>';
+			_e( 'Files stored at this destination cannot be viewed within BackupBuddy.', 'it-l10n-backupbuddy' );
 			return false;
 		}
 		
@@ -277,11 +285,12 @@ class pb_backupbuddy_destinations {
 	 *	@param		array			Array of files to send (full path).
 	 *	@return		boolean|array	true success, false on failure, array for multipart send information (transfer is being chunked up into parts).
 	 */
-	public static function send( $destination_settings, $files, $send_id = '' ) {
+	public static function send( $destination_settings, $files, $send_id = '', $delete_after = false ) {
 		
 		if ( '' != $send_id ) {
 			pb_backupbuddy::add_status_serial( 'remote_send-' . $send_id );
 			pb_backupbuddy::status( 'details', '----- Initiating master send function.' );
+			pb_backupbuddy::status( 'details', 'Post-send deletion: ' . $delete_after );
 			
 			require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
 			$fileoptions_file = backupbuddy_core::getLogDirectory() . 'fileoptions/send-' . $send_id . '.txt';
@@ -332,6 +341,7 @@ class pb_backupbuddy_destinations {
 			$files = array( $files );
 		}
 		
+		$originalFiles = $files;
 		$files_with_sizes = '';
 		foreach( $files as $index => $file ) {
 			if ( '' == $file ) {
@@ -363,10 +373,22 @@ class pb_backupbuddy_destinations {
 		//$result = $destination_class::send( $destination_settings, $files );
 		global $pb_backupbuddy_destination_errors;
 		$pb_backupbuddy_destination_errors = array();
-		$result = call_user_func_array( "{$destination['class']}::send", array( $destination_settings, $files, $send_id ) );
+		$result = call_user_func_array( "{$destination['class']}::send", array( $destination_settings, $files, $send_id, $delete_after ) );
 		if ( $result === false ) {
 			$error_details = implode( '; ', $pb_backupbuddy_destination_errors );
-			backupbuddy_core::mail_error( 'There was an error sending to the remote destination. One or more files may have not been fully transferred. Please see error details for additional information. If the error persists, enable full error logging and try again for full details and troubleshooting. Details: ' . "\n\n" . $error_details );
+			
+			$log_directory = backupbuddy_core::getLogDirectory();
+			
+			$preError = 'There was an error sending to the remote destination. One or more files may have not been fully transferred. Please see error details for additional information. If the error persists, enable full error logging and try again for full details and troubleshooting. Details: ' . "\n\n";
+			$logFile = $log_directory . 'status-remote_send-' . $send_id . '_' . backupbuddy_core::get_serial_from_file( $file ) . '.txt';
+			pb_backupbuddy::status( 'details', 'Looking for remote send log file `' . $logFile . '`.' );
+			if ( ! file_exists( $logFile ) ) {
+				pb_backupbuddy::status( 'details', 'Remote send log file not found.' );
+				backupbuddy_core::mail_error( $preError . $error_details );
+			} else { // Log exists. Attach.
+				pb_backupbuddy::status( 'details', 'Remote send log file found. Attaching to error email.' );
+				backupbuddy_core::mail_error( $preError . $error_details . "\n\nSee the attached log for details.", '', array( $logFile ) );
+			}
 		}
 		
 		if ( is_array( $result ) ) { // Send is multipart.
@@ -387,11 +409,59 @@ class pb_backupbuddy_destinations {
 				pb_backupbuddy::status( 'details', 'Destination debugging details: `' . print_r( $fileoptions, true ) . '`.' );
 				$fileoptions_obj->save();
 				unset( $fileoptions_obj );
-				pb_backupbuddy::status( 'details', 'Next multipart chunk will be sent shortly...' );
+				pb_backupbuddy::status( 'details', 'Next multipart chunk will be processed shortly. Now waiting on its cron...' );
 			}
 		} else { // Single all-at-once send.
-			pb_backupbuddy::status( 'details', 'Completed send function. Result: `' . $result . '`.' );
+			if ( false === $result ) {
+				pb_backupbuddy::status( 'details', 'Completed send function. Failure.' );
+			} elseif ( true === $result ) {
+				pb_backupbuddy::status( 'details', 'Completed send function. Success.' );
+			} else {
+				pb_backupbuddy::status( 'warning', 'Completed send function. Unknown result: `' . $result . '`.' );
+			}
+			
+			if ( true === $delete_after ) {
+				pb_backupbuddy::status( 'details', __( 'Post-send deletion enabled.', 'it-l10n-backupbuddy' ) );
+				if ( false === $result ) {
+					pb_backupbuddy::status( 'details', 'Skipping post-send deletion since transfer failed.' );
+				} else {
+					pb_backupbuddy::status( 'details', 'Performing post-send deletion since transfer succeeded.' );
+					
+					pb_backupbuddy::status( 'details', 'About to load fileoptions data.' );
+					require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
+					$fileoptions_obj = new pb_backupbuddy_fileoptions( backupbuddy_core::getLogDirectory() . 'fileoptions/send-' . $send_id . '.txt', $read_only = false, $ignore_lock = false, $create_file = false );
+					if ( true !== ( $fileoptions_result = $fileoptions_obj->is_ok() ) ) {
+						pb_backupbuddy::status( 'error', __('Fatal Error #9034.387462. Unable to access fileoptions data.', 'it-l10n-backupbuddy' ) . ' Error: ' . $fileoptions_result );
+						return false;
+					}
+					pb_backupbuddy::status( 'details', 'Fileoptions data loaded.' );
+					$fileoptions = &$fileoptions_obj->options;
+					array_push( $originalFiles, $fileoptions['file'] ); // Add file (maybe multipart) into files to clean up.
+					foreach( $originalFiles as $file ) {
+						pb_backupbuddy::status( 'details', 'Deleting local file `' . $file . '`.' );
+						// Handle post-send deletion on success.
+						if ( file_exists( $file ) ) {
+							$unlink_result = @unlink( $file );
+							if ( true !== $unlink_result ) {
+								pb_backupbuddy::status( 'error', 'Unable to unlink local file `' . $file . '`.' );
+							}
+						}
+						if ( file_exists( $file ) ) { // File still exists.
+							pb_backupbuddy::status( 'details', __('Error. Unable to delete local file `' . $file .'` after send as set in settings.', 'it-l10n-backupbuddy' ) );
+							backupbuddy_core::mail_error( 'BackupBuddy was unable to delete local file `' . $file . '` after successful remove transfer though post-remote send deletion is enabled. You may want to delete it manually. This can be caused by permission problems or improper server configuration.' );
+						} else { // Deleted.
+							pb_backupbuddy::status( 'details', __('Deleted local archive after successful remote destination send based on settings.', 'it-l10n-backupbuddy' ) );
+							pb_backupbuddy::status( 'archiveDeleted', '' );
+						}
+					}
+				}
+			} else {
+				pb_backupbuddy::status( 'details', 'Post-send deletion not enabled.' );
+			}
 		}
+		
+		// NOTE: Call this before removing status serial so it shows in log.
+		pb_backupbuddy::status( 'details', 'Finishing send() function.' );
 		
 		if ( '' != $send_id ) {
 			pb_backupbuddy::remove_status_serial( 'remote_send-' . $send_id );

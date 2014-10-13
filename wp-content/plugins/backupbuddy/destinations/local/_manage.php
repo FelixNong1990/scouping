@@ -9,7 +9,7 @@ if ( isset( pb_backupbuddy::$options['remote_destinations'][pb_backupbuddy::_GET
 
 
 // Welcome text.
-pb_backupbuddy::$ui->title( 'Local Destination `' . $destination['title'] . '`' );
+//pb_backupbuddy::$ui->title( 'Local Destination `' . $destination['title'] . '`' );
 echo 'Listing backups in local directory `' . $destination['path'] . '`...<br><br>';
 
 
@@ -29,6 +29,7 @@ if ( pb_backupbuddy::_POST( 'bulk_action' ) == 'delete_backup' ) {
 	if ( count( $deleted_files ) > 0 ) {
 		pb_backupbuddy::alert( 'Deleted ' . implode( ', ', $deleted_files ) . '.' );
 	}
+	echo '<br>';
 }
 
 
@@ -53,12 +54,13 @@ foreach( $backups as $backup ) {
 					);
 }
 
+$urlPrefix = pb_backupbuddy::ajax_url( 'remoteClient' ) . '&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) );
 
 // Render table.
 pb_backupbuddy::$ui->list_table(
 	$backup_list,
 	array(
-		'action'		=>	pb_backupbuddy::page_url() . '&custom=remoteclient&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) ),
+		'action'		=>	$urlPrefix,
 		'columns'		=>	array( 'Backup File', 'Last Modified', 'File Size' ),
 		//'hover_actions'	=>	array( 'copy' => 'Copy to Local' ),
 		'hover_action_column_key'	=>	'0',

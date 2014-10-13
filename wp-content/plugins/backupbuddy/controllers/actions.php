@@ -14,7 +14,7 @@ class pb_backupbuddy_actions extends pb_backupbuddy_actionscore {
 	 */
 	function admin_notices() {
 		
-		backupbuddy_core::verify_directories();
+		backupbuddy_core::verify_directories( $skipTempGeneration = true );
 		
 	} // End admin_notices().
 	
@@ -32,7 +32,7 @@ class pb_backupbuddy_actions extends pb_backupbuddy_actionscore {
 		
 		
 		// Verify directories.
-		backupbuddy_core::verify_directories();
+		backupbuddy_core::verify_directories( $skipTempGeneration = true );
 		
 		
 		pb_backupbuddy::status( 'details', 'cron_process_scheduled_backup: ' . $cron_id );
@@ -230,7 +230,18 @@ class pb_backupbuddy_actions extends pb_backupbuddy_actionscore {
 	 *	@return		
 	 */
 	function multisite_network_warning() {
-		pb_backupbuddy::alert( 'BackupBuddy Multisite support is experimental beta software and should NOT be used on live sites. BackupBuddy should be <a href="' . esc_url( admin_url( 'network/plugins.php' ) ) . '">Network Activated</a> when installed on a Multisite Network for experimental testing. You must add the following line to your wp-config.php to activate these experimental features: <b>define( \'PB_BACKUPBUDDY_MULTISITE_EXPERIMENT\', true );</b>', true );
+		
+		$message = 'BackupBuddy Multisite support is experimental beta software and is not officially supported in a Multisite setting.';
+		
+		if ( ! backupbuddy_core::is_network_activated() ) {
+			$message .= ' You must <a href="' . esc_url( admin_url( 'network/plugins.php' ) ) . '">Network Activate</a> BackupBuddy to use it with Multisite (not activate within subsites nor the main site).';
+		}
+		
+		if ( ! defined( 'PB_BACKUPBUDDY_MULTISITE_EXPERIMENT' ) || ( PB_BACKUPBUDDY_MULTISITE_EXPERIMENT != TRUE ) ) {
+			$message .= ' You must add the following line to your wp-config.php to activate Multisite experimental functionality: <b>define( \'PB_BACKUPBUDDY_MULTISITE_EXPERIMENT\', true );</b>';
+		}
+		
+		pb_backupbuddy::alert( $message, true );
 	}
 	
 	

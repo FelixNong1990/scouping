@@ -21,6 +21,7 @@ class pb_backupbuddy_destination_ftp {
 		'ftps'			=>		0,
 		'archive_limit'	=>		0,
 		'url'			=>		'',		// optional url for migration that corresponds to this ftp/path.
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 	);
 	
 	

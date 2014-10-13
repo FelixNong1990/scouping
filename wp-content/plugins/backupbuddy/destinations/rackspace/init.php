@@ -18,6 +18,7 @@ class pb_backupbuddy_destination_rackspace { // Change class name end to match d
 		'container'		=>		'',		// Rackspace container to send into.
 		'server'		=>		'https://auth.api.rackspacecloud.com', // Server address to connect to for sending. For instance the UK Rackspace cloud URL differs.
 		'archive_limit'	=>		'0',
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 	);
 	
 	

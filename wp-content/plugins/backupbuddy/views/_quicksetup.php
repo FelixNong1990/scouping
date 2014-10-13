@@ -189,6 +189,12 @@ pb_backupbuddy::load_style( 'quicksetup.css' );
 			<img src="<?php echo pb_backupbuddy::plugin_url(); ?>/images/check.png" class="check" id="pb_backupbuddy_quickstart_archive_limit_check">
 		</div>
 	-->
+	
+	
+	<?php
+	require_once( pb_backupbuddy::plugin_path() . '/destinations/bootstrap.php' );
+	$destinations = pb_backupbuddy_destinations::get_destinations_list();
+	?>
 		
 		<div class="step destination">
 			<h4><span class="number">3.</span> Where do you want to send your backups (scheduled or manually sent)?</h4>
@@ -196,12 +202,15 @@ pb_backupbuddy::load_style( 'quicksetup.css' );
 				<input type="hidden" id="pb_backupbuddy_quickstart_destinationid" name="destination_id" value="">
 				<select id="pb_backupbuddy_quickstart_destination"  name="destination" class="change">
 					<option value="">Local Only (no remote destination)</option>
-					<option value="stash">BackupBuddy Stash (recommended)</option>
-					<option value="ftp">FTP</option>
-					<option value="email">Email</option>
-					<option value="s3">Amazon S3</option>
-					<option value="rackspace">Rackspace</option>
-					<option value="dropbox">Dropbox</option>
+					<?php
+					foreach( $destinations as $destinationSlug => $destination ) {
+						if ( 'stash' == $destinationSlug ) {
+							$destination['name'] .= ' (' . __( 'recommended', 'it-l10n-backupbuddy' ) . ')';
+						}
+						echo '<option value="' . $destinationSlug . '">' . $destination['name'] . '</option>' . "\n";
+					}
+					unset( $destinations );
+					?>
 				</select>
 				<img src="<?php echo pb_backupbuddy::plugin_url(); ?>/images/check.png" class="check" id="pb_backupbuddy_quickstart_destination_check" />
 

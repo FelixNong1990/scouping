@@ -14,7 +14,8 @@ $itxapi_password = '';
 
 if ( $mode == 'add' ) { // ADD MODE.
 	
-	$credentials_form = new pb_backupbuddy_settings( 'pre_settings', false, 'action=pb_backupbuddy_destination_picker&quickstart=' . htmlentities( pb_backupbuddy::_GET( 'quickstart' ) ) . '&add=' . htmlentities( pb_backupbuddy::_GET( 'add' ) ) . '&callback_data=' . htmlentities( pb_backupbuddy::_GET( 'callback_data' ) ) . '&sending=' . pb_backupbuddy::_GET( 'sending' ) ); // name, savepoint|false, additional querystring
+	
+	$credentials_form = new pb_backupbuddy_settings( 'pre_settings', false, 'action=pb_backupbuddy_backupbuddy&function=destination_picker&quickstart=' . htmlentities( pb_backupbuddy::_GET( 'quickstart' ) ) . '&add=' . htmlentities( pb_backupbuddy::_GET( 'add' ) ) . '&callback_data=' . htmlentities( pb_backupbuddy::_GET( 'callback_data' ) ) . '&sending=' . pb_backupbuddy::_GET( 'sending' ) ); // name, savepoint|false, additional querystring
 	
 	$credentials_form->add_setting( array(
 		'type'		=>		'text',
@@ -93,13 +94,12 @@ if ( $mode == 'add' ) { // ADD MODE.
 if ( ( $mode == 'save' ) || ( $mode == 'edit' ) || ( $itxapi_username != '' ) ) {
 	$default_name = NULL;
 	
-	if ( $mode != 'save' ) {
+	if ( ( $mode != 'save' ) && ( 'edit' != $mode ) ) {
 		if ( $account_info === false ) {
 			$pb_hide_test = true;
 			$pb_hide_save = true;
 			return false;
 		}
-		
 		
 		$account_details = 'Welcome to your BackupBuddy Stash, <b>' . $itxapi_username . '</b>. Your account is ';
 		if ( $account_info['subscriber_locked'] == '1' ) {
@@ -127,6 +127,7 @@ if ( ( $mode == 'save' ) || ( $mode == 'edit' ) || ( $itxapi_username != '' ) ) 
 			// Check to see if user already has a Stash with this username set up for this site. No need for multiple same account Stashes.
 			foreach( (array)pb_backupbuddy::$options['remote_destinations'] as $destination ) {
 				if ( ( isset( $destination['itxapi_username'] ) ) && ( strtolower( $destination['itxapi_username'] ) == strtolower( $itxapi_username ) ) ) {
+					echo '<br><br>';
 					pb_backupbuddy::alert( 'Note: You already have a Stash destination set up under the provided iThemes account username.  It is unnecessary to create multiple Stash destinations that go to the same user account as they are effectively the same destination and a duplicate.' );
 					break;
 				}
@@ -206,6 +207,16 @@ if ( ( $mode == 'save' ) || ( $mode == 'edit' ) || ( $itxapi_username != '' ) ) 
 		'css'		=>		'',
 		'rules'		=>		'',
 	) );
+	$settings_form->add_setting( array(
+		'type'		=>		'checkbox',
+		'name'		=>		'use_packaged_cert',
+		'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+		'title'		=>		__( 'Use included CA bundle', 'it-l10n-backupbuddy' ),
+		'tip'		=>		__( '[Default: disabled] - When enabled, BackupBuddy will use its own bundled SSL certificate bundle for connecting to the server. Use this if SSL fails due to SSL certificate issues with your server.', 'it-l10n-backupbuddy' ),
+		'css'		=>		'',
+		'after'		=>		'<span class="description"> ' . __('Uses included certificate bundle.', 'it-l10n-backupbuddy' ) . '</span>',
+		'rules'		=>		'',
+	) );
 	if ( $mode !== 'edit' ) {
 		$settings_form->add_setting( array(
 			'type'		=>		'checkbox',
@@ -213,6 +224,15 @@ if ( ( $mode == 'save' ) || ( $mode == 'edit' ) || ( $itxapi_username != '' ) ) 
 			'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
 			'title'		=>		__( 'Manage all files', 'it-l10n-backupbuddy' ),
 			'tip'		=>		__( '[Default: enabled] - When enabled, you have access to manage and view all files stored in your Stash account. You will be prompted for your password to access backups for sites other than this one.  If disabled the option is entirely removed for added security. For example, you may wish to disable this feature if a client has access and you want to keep them away from your files. This option can NOT be changed without deleting and re-creating the Stash destination for added security.', 'it-l10n-backupbuddy' ),
+			'css'		=>		'',
+			'rules'		=>		'',
+		) );
+		$settings_form->add_setting( array(
+			'type'		=>		'checkbox',
+			'name'		=>		'disable_file_management',
+			'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+			'title'		=>		__( 'Disable file management', 'it-l10n-backupbuddy' ),
+			'tip'		=>		__( '[Default: unchecked] - When checked, selecting this destination disables browsing or accessing files stored at this destination from within BackupBuddy.', 'it-l10n-backupbuddy' ),
 			'css'		=>		'',
 			'rules'		=>		'',
 		) );

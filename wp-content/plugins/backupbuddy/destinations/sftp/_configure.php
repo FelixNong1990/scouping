@@ -80,3 +80,14 @@ $settings_form->add_setting( array(
 	'after'		=>		' backups',
 ) );
 
+if ( $mode !== 'edit' ) {
+	$settings_form->add_setting( array(
+		'type'		=>		'checkbox',
+		'name'		=>		'disable_file_management',
+		'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+		'title'		=>		__( 'Disable file management', 'it-l10n-backupbuddy' ),
+		'tip'		=>		__( '[Default: unchecked] - When checked, selecting this destination disables browsing or accessing files stored at this destination from within BackupBuddy.', 'it-l10n-backupbuddy' ),
+		'css'		=>		'',
+		'rules'		=>		'',
+	) );
+}

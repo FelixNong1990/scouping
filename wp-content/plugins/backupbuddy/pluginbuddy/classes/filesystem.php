@@ -223,7 +223,7 @@ class pb_backupbuddy_filesystem {
 			while( $file = readdir( $sub ) ) {
 				$exclusions_result = $exclusions;
 				
-				$dir_path = '/' . str_replace( $base, '', $dir . '/' . $file ); //str_replace( $base, '', $dir . $file . '/' );
+				$dir_path = '/' . str_replace( $base, '', $dir . '/' . $file ) . '/'; //str_replace( $base, '', $dir . $file . '/' );
 				
 				if ( ( $file == '.' ) || ( $file == '..' ) ) {
 					

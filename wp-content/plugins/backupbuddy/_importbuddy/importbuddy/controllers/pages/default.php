@@ -8,6 +8,9 @@ if ( ! defined( 'PB_IMPORTBUDDY' ) || ( true !== PB_IMPORTBUDDY ) ) {
 /****** BEGIN AUTHENTICATION *****/
 require_once( ABSPATH . 'importbuddy/classes/auth.php' );
 Auth::check();
+if ( ( true === Auth::is_authenticated() ) && ( 'login' == pb_backupbuddy::_POST( 'action' ) ) ) { // On successful login to step 0, redirect to step 1.
+	header( 'Location: ' . pb_backupbuddy::page_url() );
+}
 /****** END AUTHENTICATION *****/
 
 
@@ -81,7 +84,8 @@ function shutdown_function() {
 
 
 
-/********** AJAX **********/
+
+// Handle AJAX.
 
 $ajax = '';
 if ( pb_backupbuddy::_POST( 'ajax' ) != '' ) {
@@ -89,7 +93,7 @@ if ( pb_backupbuddy::_POST( 'ajax' ) != '' ) {
 } elseif ( pb_backupbuddy::_GET( 'ajax' ) != '' ) {
 	$ajax = pb_backupbuddy::_GET( 'ajax' );
 }
-if ( $ajax != '' ) {	
+if ( $ajax != '' ) { // AJAX
 	
 	Auth::require_authentication(); // Die if not logged in.
 	
@@ -97,17 +101,20 @@ if ( $ajax != '' ) {
 	if ( file_exists( $page ) ) {
 		require_once( $page );
 	} else {
-		echo '{Error: Invalid AJAX action `' . htmlentities( $ajax ) . '`.}';
+		echo '{Error: Invalid AJAX action `' . htmlentities( $ajax ) . '` File not found: `' . $page . '`.}';
 	}
+	return;
 	
-/********** PAGES **********/
+}
 
-// Standalone pages.
-} elseif ( pb_backupbuddy::_GET( 'page' ) != '' ) {
+
+// Determine page to load.
+
+if ( pb_backupbuddy::_GET( 'page' ) != '' ) { // Named page.
 	
 	Auth::require_authentication(); // Die if not logged in.
 	
-	$pageSlug = str_replace( '/\\', '', pb_backupbuddy::_GET( 'page' ) );
+	$pageSlug = str_replace( array( '\\', '/' ), '', pb_backupbuddy::_GET( 'page' ) );
 	if ( ! ctype_alnum( str_replace( array( '-', '_' ), '', $pageSlug ) ) ) { // Disallow non-alphanumeric except dash, underscore.
 		die( 'Error #85747833. Page contains disallowed characters. Only alphanumeric, dashes, and underscores permitted.' );
 	} 
@@ -119,30 +126,44 @@ if ( $ajax != '' ) {
 		pb_backupbuddy::status( 'details', 'Finished page ' . $pageSlug . '.' );
 	} else {
 		echo '{Error: Invalid page `' . htmlentities( pb_backupbuddy::_GET( 'step' ) ) . '.php' . '`.}';
-		die();
 	}
+	return;
 	
-// Import steps.
-} elseif ( ( pb_backupbuddy::_GET( 'step' ) != '' ) && is_numeric( pb_backupbuddy::_GET( 'step' ) ) ) {
+} elseif ( pb_backupbuddy::_GET( 'step' ) != '' ) { // Numerical step.
 	
-	$step = pb_backupbuddy::_GET( 'step' );
-	if ( $step > 1 ) {
+	if ( true !== Auth::is_authenticated() ) { // If not logged in then provide login page.
+		$step = 'login';
+	} else {
+		$step = pb_backupbuddy::_GET( 'step' );
 		Auth::require_authentication(); // Die if not logged in.
 	}
 	
-	$page = ABSPATH . 'importbuddy/controllers/pages/' . pb_backupbuddy::_GET( 'step' ) . '.php';
-	if ( file_exists( $page ) ) {
-		$step = pb_backupbuddy::_GET( 'step' );
-		echo '<!-- Starting step ' . htmlentities( pb_backupbuddy::_GET( 'step' ) ) . '. Page: `' . basename( $page ) . '`. -->';
-		require_once( $page );
-		pb_backupbuddy::status( 'details', 'Finished step ' . htmlentities( pb_backupbuddy::_GET( 'step' ) ) . '.' );
+} else { // Unknown. Default to login.
+	if ( true !== Auth::is_authenticated() ) { // If not logged in then provide login page.
+		$step = 'login';
 	} else {
-		echo '{Error: Invalid page `' . htmlentities( pb_backupbuddy::_GET( 'step' ) ) . '.php' . '`.}';
-		die();
+		$step = 'homeBackupSelect';
 	}
-	
-/********** ASSUME DEFAULT PAGE **********/
-} else {
-	require_once( '1.php' );
 }
-?>
+
+$stepFile = ABSPATH . 'importbuddy/controllers/pages/' . $step . '.php';
+$step = pb_backupbuddy::_GET( 'step' );
+require_once( ABSPATH . 'importbuddy/views/_header.php' );
+echo '<!-- Starting step file `' . basename( $stepFile ) . '`. -->';
+
+/*if ( $step > 0 ) { // Load steps after 0 in iframe.
+	echo pb_backupbuddy::$classes['import']->status_box( 'ImportBuddy v' . pb_backupbuddy::$options['bb_version'] . '... Powered by BackupBuddy.' );
+	echo '<iframe id="pb_backupbuddy_modal_iframe" name="pb_backupbuddy_modal_iframe" src="' . pb_backupbuddy::page_url() . 'importbuddy.php?ajax=' . $step . '" width="100%" height="1800" frameborder="0" padding="0" margin="0">Error #4584594579. Browser not compatible with iframes.</iframe>';
+} else {
+	*/
+	if ( file_exists( $stepFile ) ) {
+		require_once( $stepFile );
+	} else {
+		echo '{Error: Invalid step file `' . htmlentities( $step ) . '.php' . '`.}';
+	}
+//}
+pb_backupbuddy::status( 'details', 'Finished step.' );
+require_once( ABSPATH . 'importbuddy/views/_footer.php' );
+
+return;
+

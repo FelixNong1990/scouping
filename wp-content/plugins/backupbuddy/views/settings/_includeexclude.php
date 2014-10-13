@@ -101,7 +101,7 @@ echo '<h3>Editing Profile "' . pb_backupbuddy::$options['profiles'][$profile]['t
 <?php
 
 
-$settings_form = new pb_backupbuddy_settings( 'profile_settings', '', 'action=pb_backupbuddy_profile_settings&profile=' . $profile, 320 );
+$settings_form = new pb_backupbuddy_settings( 'profile_settings', '', 'action=pb_backupbuddy_backupbuddy&function=profile_settings&profile=' . $profile, 320 );
 
 
 if ( pb_backupbuddy::$options['profiles'][$profile]['type'] == 'db' ) {

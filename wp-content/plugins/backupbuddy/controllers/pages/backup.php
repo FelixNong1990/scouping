@@ -19,7 +19,8 @@ if ( isset( $export_only ) && ( $export_only === true ) ) {
 if ( pb_backupbuddy::_GET( 'custom' ) != '' ) { // Custom page.
 	
 	if ( pb_backupbuddy::_GET( 'custom' ) == 'remoteclient' ) {
-		require_once( '_remote_client.php' );
+		//require_once( '_remote_client.php' );
+		die( 'Fatal Error #847387344: Obselete URL. Use remoteClient AJAX URL.' );
 	} else {
 		die( 'Unknown custom page. Error #4385489545.' );
 	}

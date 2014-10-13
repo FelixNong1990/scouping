@@ -1,5 +1,5 @@
 <?php // This code runs everywhere. pb_backupbuddy::$options preloaded.
-include( 'classes/api0.php' );
+include( 'classes/api.php' );
 
 
 // Make localization happen.
@@ -22,7 +22,7 @@ pb_backupbuddy::add_action( array( 'pb_backupbuddy-cron_scheduled_backup', 'proc
 pb_backupbuddy::add_cron( 'process_backup', 10, 1 ); // Normal (manual) backup. Normal backups use cron system for scheduling each step when in modern mode. Classic mode skips this and runs all in one PHP process.
 pb_backupbuddy::add_cron( 'final_cleanup', 10, 1 ); // Cleanup after backup.
 pb_backupbuddy::add_cron( 'remote_send', 10, 5 ); // Manual remote destination sending.
-pb_backupbuddy::add_cron( 'destination_send', 10, 3 ); // Manual remote destination sending.
+pb_backupbuddy::add_cron( 'destination_send', 10, 5 ); // Manual remote destination sending.
 
 // Remote destination copying. Eventually combine into one function to pass to individual remote destination classes to process.
 pb_backupbuddy::add_cron( 'process_s3_copy', 10, 6 );
@@ -44,7 +44,12 @@ if ( '1' == pb_backupbuddy::$options['disable_https_local_ssl_verify'] ) {
 
 
 /********** OTHER (global) **********/
-
+/*
+if ( ( '.' != pb_backupbuddy::$options['api_key'] ) && ( isset( $_POST['backupbuddy_api'] ) ) ) {
+	include( pb_backupbuddy::plugin_path() . '/classes/_apiServer.php' );
+	die( 'Unknown API request.' );
+}
+*/
 
 // WP-CLI tool support for command line access to BackupBuddy. http://wp-cli.org/
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
@@ -81,10 +86,17 @@ function backupbuddy_register_sync_verbs( $api ) {
 		'backupbuddy-list-profiles'				=> 'Ithemes_Sync_Verb_Backupbuddy_List_Profiles',
 		'backupbuddy-list-schedules'			=> 'Ithemes_Sync_Verb_Backupbuddy_List_Schedules',
 		'backupbuddy-list-destinations'			=> 'Ithemes_Sync_Verb_Backupbuddy_List_Destinations',
+		'backupbuddy-list-destinationTypes'		=> 'Ithemes_Sync_Verb_Backupbuddy_List_DestinationTypes',
 		'backupbuddy-get-overview'				=> 'Ithemes_Sync_Verb_Backupbuddy_Get_Overview',
 		'backupbuddy-get-latestBackupProcess'	=> 'Ithemes_Sync_Verb_Backupbuddy_Get_LatestBackupProcess',
 		'backupbuddy-get-everything'			=> 'Ithemes_Sync_Verb_Backupbuddy_Get_Everything',
 		'backupbuddy-get-importbuddy'			=> 'Ithemes_Sync_Verb_Backupbuddy_Get_Importbuddy',
+		'backupbuddy-add-schedule'				=> 'Ithemes_Sync_Verb_Backupbuddy_Add_Schedule',
+		'backupbuddy-test-destination'			=> 'Ithemes_Sync_Verb_Backupbuddy_Test_Destination',
+		'backupbuddy-delete-destination'		=> 'Ithemes_Sync_Verb_Backupbuddy_Delete_Destination',
+		'backupbuddy-delete-schedule'			=> 'Ithemes_Sync_Verb_Backupbuddy_Delete_Schedule',
+		'backupbuddy-get-destinationSettings'	=> 'Ithemes_Sync_Verb_Backupbuddy_Get_DestinationSettings',
+		'backupbuddy-add-destination'			=> 'Ithemes_Sync_Verb_Backupbuddy_Add_Destination',
 	);
 	foreach( $verbs as $name => $class ) {
 		$api->register( $name, $class, pb_backupbuddy::plugin_path() . "/classes/ithemes-sync/$name.php" );

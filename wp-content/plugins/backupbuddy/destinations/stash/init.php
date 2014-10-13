@@ -30,6 +30,8 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 		'full_archive_limit' 		=>		'4',		// Maximum number of full backups for this site in this directory for this account. No limit if zero 0.
 		'files_archive_limit' 		=>		'4',		// Maximum number of files only backups for this site in this directory for this account. No limit if zero 0.
 		'manage_all_files'			=>		'1',		// Allow user to manage all files in Stash? If enabled then user can view all files after entering their password. If disabled the link to view all is hidden.
+		'use_packaged_cert'			=>		'0',		// When 1, use the packaged cacert.pem file included with the AWS SDK.
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 		
 		// Do not store these for destination settings. Only used to pass to functions in this file.
 		'_multipart_id'				=>		'',			// Instance var. Internal use only for continuing a chunked upload.
@@ -51,8 +53,9 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 	 *	@param		array			$files			Array of one or more files to send.
 	 *	@return		boolean|array					True on success, false on failure, array if a multipart chunked send so there is no status yet.
 	 */
-	public static function send( $settings = array(), $files = array(), $send_id = '', $clear_uploads = false ) {
+	public static function send( $settings = array(), $files = array(), $send_id = '', $delete_after = false, $clear_uploads = false ) {
 		
+		pb_backupbuddy::status( 'details', 'Post-send deletion: ' . $delete_after );
 		global $pb_backupbuddy_destination_errors;
 		
 		if ( !is_array( $files ) ) {
@@ -62,13 +65,33 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			//$clear_uploads = true;
 		}
 		
+		$meta = array();
+		if ( isset( $settings['meta'] ) ) {
+			pb_backupbuddy::status( 'details', 'Meta setting passed. Applying to all files in this pass.' );
+			$meta = $settings['meta'];
+		}
+		$forceRootUpload = false;
+		if ( isset( $settings['forceRootUpload'] ) ) {
+			$forceRootUpload = $settings['forceRootUpload'];
+		}
+		
 		$itxapi_username = $settings['itxapi_username'];
 		$itxapi_password = $settings['itxapi_password'];
 		$db_archive_limit = $settings['db_archive_limit'];
 		$full_archive_limit = $settings['full_archive_limit'];
 		$files_archive_limit = $settings['files_archive_limit'];
 		$max_chunk_size = $settings['max_chunk_size'];
-		$remote_path = self::get_remote_path( $settings['directory'] ); // Has leading and trailng slashes.
+		if ( $max_chunk_size < self::MINIMUM_CHUNK_SIZE ) {
+			$max_chunk_size = self::MINIMUM_CHUNK_SIZE;
+			pb_backupbuddy::status( 'details', 'Setting for chunk size is below minimum limit. Increased to minimum of `' . $max_chunk_size . '` MB.' );
+		}
+		if ( true === $forceRootUpload ) {
+			pb_backupbuddy::status( 'details', 'Forcing root upload.' );
+			$remote_path = '/';
+		} else {
+			pb_backupbuddy::status( 'details', 'Not forcing root upload. Calculting root path.'  );
+			$remote_path = self::get_remote_path( $settings['directory'] ); // Has leading and trailng slashes.
+		}
 		if ( $settings['ssl'] == '0' ) {
 			$disable_ssl = true;
 		} else {
@@ -157,7 +180,8 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			if ( !isset( $settings['_multipart_counts'][ $settings['_multipart_partnumber'] ] ) ) { // No more parts exist for this file. Tell S3 the multipart upload is complete and move on.
 				pb_backupbuddy::status( 'details', 'Stash getting parts with etags to notify S3 of completed multipart send.' );
 				$etag_parts = $s3->list_parts( $settings['_multipart_upload_data']['bucket'], $settings['_multipart_upload_data']['object'], $settings['_multipart_id'] );
-				pb_backupbuddy::status( 'details', 'Stash got parts list. Notifying S3 of multipart upload completion.' );
+				pb_backupbuddy::status( 'details', 'Stash got parts list. Details: ' . print_r( $etag_parts, true ) );
+				pb_backupbuddy::status( 'details', 'Notifying S3 of multipart upload completion.' );
 				$response = $s3->complete_multipart_upload( $settings['_multipart_upload_data']['bucket'], $settings['_multipart_upload_data']['object'], $settings['_multipart_id'], $etag_parts );
 				if(!$response->isOK()) {
 					$this_error = 'Stash unable to notify S3 of completion of all parts for multipart upload `' . $settings['_multipart_id'] . '`.';
@@ -226,7 +250,13 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			// Schedule to continue if anything is left to upload for this multipart of any individual files.
 			if ( ( $settings['_multipart_id'] != '' ) || ( count( $files ) > 0 ) ) {
 				pb_backupbuddy::status( 'details', 'Stash multipart upload has more parts left. Scheduling next part send.' );
-				$schedule_result = backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'destination_send' ), array( $settings, $files, $send_id ) );
+				
+				$cronTime = time();
+				$cronArgs = array( $settings, $files, $send_id, $delete_after );
+				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
+				$cronArgs[] = $cronHashID;
+				
+				$schedule_result = backupbuddy_core::schedule_single_event( $cronTime, pb_backupbuddy::cron_tag( 'destination_send' ), $cronArgs );
 				if ( true === $schedule_result ) {
 					pb_backupbuddy::status( 'details', 'Next Stash chunk step cron event scheduled.' );
 				} else {
@@ -334,7 +364,7 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 					$upload_data['object'],
 					array(
 						'encryption' => 'AES256',
-						//'meta'       => $meta_array,
+						'meta'       => $meta,
 					)
 				);
 				
@@ -366,7 +396,13 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 				
 				// Schedule to process the parts.
 				pb_backupbuddy::status( 'details', 'Stash scheduling send of next part(s).' );
-				backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'destination_send' ), array( $multipart_destination_settings, $files, $send_id ) );
+				
+				$cronTime = time();
+				$cronArgs = array( $multipart_destination_settings, $files, $send_id, $delete_after );
+				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
+				$cronArgs[] = $cronHashID;
+				
+				backupbuddy_core::schedule_single_event( $cronTime, pb_backupbuddy::cron_tag( 'destination_send' ), $cronArgs );
 				spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 				update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 				pb_backupbuddy::status( 'details', 'Stash scheduled send of next part(s). Done for this cycle.' );
@@ -374,10 +410,10 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 				return array( $upload_id, 'Starting send of ' . count( $multipart_destination_settings['_multipart_counts'] ) . ' parts.' );
 			} else { // did not meet chunking criteria.
 				if ( $max_chunk_size != '0' ) {
-					if ( ( $file_size / 1024 / 1024 ) > self::MINIMUM_CHUNK_SIZE ) {
-						pb_backupbuddy::status( 'details', 'File size of ' . pb_backupbuddy::$format->file_size( $file_size ) . ' is less than the max chunk size of ' . $max_chunk_size . 'MB; not chunking into multipart upload.' );
-					} else {
+					if ( ( $file_size / 1024 / 1024 ) < self::MINIMUM_CHUNK_SIZE ) {
 						pb_backupbuddy::status( 'details', 'File size of ' . pb_backupbuddy::$format->file_size( $file_size ) . ' is less than the minimum allowed chunk size of ' . self::MINIMUM_CHUNK_SIZE . 'MB; not chunking into multipart upload.' );
+					} else {
+						pb_backupbuddy::status( 'details', 'File size of ' . pb_backupbuddy::$format->file_size( $file_size ) . ' is less than your chunk size setting of ' . $max_chunk_size . ' MB; not chunking into multipart upload.' );
 					}
 				} else {
 					pb_backupbuddy::status( 'details', 'Max chunk size set to zero so not chunking into multipart upload.' );
@@ -386,14 +422,19 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			
 			
 			// SEND file.
-			pb_backupbuddy::status( 'details', 'About to put (upload) object to Stash.' );
+			if ( ( ! @file_exists( $file ) ) || ( @is_dir( $file ) ) ) {
+				pb_backupbuddy::status( 'error', 'Error #848344: File to send, `' . $file . '`, does not exist or unreadable. It cannot be a directory.' );
+				return false;
+			}
+			pb_backupbuddy::status( 'details', 'About to put (upload) object to Stash. File: `' . $file . '`.' );
+			pb_backupbuddy::status( 'details', 'Meta: ' . print_r( $meta, true ) );
 			$response = $s3->create_object(
 				$upload_data['bucket'],
 				$upload_data['object'],
 				array(
 					'fileUpload' => $file,
 					'encryption' => 'AES256',
-					//'meta'       => $meta_array,
+					'meta'       => $meta,
 				)
 			);
 			
@@ -401,7 +442,8 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 			// Validate response. On failure notify Stash API that things went wrong.
 			if(!$response->isOK()) { // Send FAILED.
 				
-				pb_backupbuddy::status( 'details', 'Sending upload abort.' );
+				pb_backupbuddy::status( 'details', 'Failure uploading file to Stash storage. Notifying Stash API next. Upload details: `' . print_r( $response, true ) . '`.' );
+				pb_backupbuddy::status( 'details', 'Sending upload abort to `' . $abort_url . '`.' );
 				$request = new RequestCore($abort_url);
 				$response = $request->send_request(true);
 				
@@ -578,7 +620,6 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 		}
 		
 		// S3 object for managing files.
-		$credentials = pb_backupbuddy_destination_stash::get_manage_data( $settings );
 		$s3_manage = new AmazonS3( $manage_data['credentials'] );
 		if ( $settings['ssl'] == 0 ) {
 			@$s3_manage->disable_ssl(true);
@@ -684,9 +725,11 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 	 *	
 	 *	Get the required credentials and management data for managing user files.
 	 *	
-	 *	@return		false|array			Boolean false on failure. Array of data on success.
+	 *	@param		array	$settings		Destination settings.
+	 *	@param		bool	$hideAuthAlert	Default: false. Whether or not to suppress an alert box if authentication is failing. Useful for showing a more friendly message for that common error, or a re-auth form.
+	 *	@return		false|array				Boolean false on failure. Array of data on success.
 	 */
-	public static function get_manage_data( $settings ) {
+	public static function get_manage_data( $settings, $suppressAuthAlert = false ) {
 		
 		$itxapi_username = $settings['itxapi_username'];
 		$itxapi_password = $settings['itxapi_password'];
@@ -732,8 +775,17 @@ class pb_backupbuddy_destination_stash { // Change class name end to match desti
 		if(isset($manage_data['error'])) {
 			$error = 'Error: ' . implode(' - ', $manage_data['error']);
 			pb_backupbuddy::status( 'error', $error );
-			pb_backupbuddy::alert( $error );
+			if ( ( true === $suppressAuthAlert ) && ( '3002' == $manage_data['error']['code'] ) ) {
+				// Alert suppressed.
+			} else {
+				pb_backupbuddy::alert( $error );
+			}
 			return false;
+		}
+		
+		if ( '1' == $settings['use_packaged_cert'] ) {
+			pb_backupbuddy::status( 'details', 'Using packaged cacert.pem file based on destination settings.' );
+			$manage_data['ssl.certificate_authority'] = pb_backupbuddy::plugin_path() . '/destinations/_s3lib/aws-sdk/lib/requestcore/cacert.pem';
 		}
 		
 		return $manage_data;

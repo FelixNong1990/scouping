@@ -16,6 +16,10 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 	class pluginbuddy_dbreplace {
 		var $_version = '1.0';
 		
+		var $startTime;
+		var $timeWiggleRoom;
+		var $maxExecutionTime;
+		
 		const MAX_ROWS_PER_SELECT = 500;
 		
 		
@@ -28,7 +32,14 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 		 *	@return		null
 		 *
 		 */
-		function __construct( ) {
+		function __construct( $startTime = '', $timeWiggleRoom = 1, $maxExecutionTime = 30 ) {
+			if ( '' == $startTime ) {
+				$this->startTime = microtime( true );
+			} else {
+				$this->startTime = $startTime;
+			}
+			$this->timeWiggleRoom = $timeWiggleRoom;
+			$this->maxExecutionTime = $maxExecutionTime;
 		}
 		
 		
@@ -70,8 +81,11 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 			}
 			
 			global $wpdb;
-			return $wpdb->query( "UPDATE `{$table}` SET " . implode( ',', $rows_sql ) . ";" );
-		}
+			$wpdb->query( "UPDATE `{$table}` SET " . implode( ',', $rows_sql ) . ";" );
+			
+			return true;
+			
+		} // End text().
 		
 		
 		/**
@@ -83,10 +97,11 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 		 *	@param		mixed		$olds		Old value(s) to find for replacement. May be a string or array of values.
 		 *	@param		mixed		$news		New value(s) to be replaced with. May be a string or array. If array there must be the same number of values as $olds.
 		 *	@param		mixed		$rows		Table row(s) to replace within. May be an array of tables.
+		 *	@param		int			$rows_start	Row to start at. Used for resuming.
 		 *	@return		null
 		 *
 		 */
-		public function serialized( $table, $olds, $news, $rows ) {
+		public function serialized( $table, $olds, $news, $rows, $rows_start = '' ) {
 			if ( !is_array( $olds ) ) {
 				$olds = array( $olds );
 			}
@@ -131,8 +146,8 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 			
 			// No primary key found; unsafe to edit this table. @since 2.2.32.
 			if ( count( $key_results ) == 0 ) {
-				pb_backupbuddy::status( 'message', 'Error #9029: Table `'.  $table .'` does not contain a primary key; BackupBuddy cannot safely modify the contents of this table. Skipping migration of this table. (serialized()).' );
-				return;
+				pb_backupbuddy::status( 'message', 'Error #9029: Warning only! Table `'.  $table .'` does not contain a primary key; BackupBuddy cannot safely modify the contents of this table. Skipping migration of this table. (serialized()).' );
+				return true;
 			}
 			
 			$primary_key = $key_results[0]['Column_name'];
@@ -140,7 +155,9 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 			
 			$updated = false; // Was something in DB updated?
 			$rows_remain = true; // More rows remaining / aka another query for more rows needed.
-			$rows_start = 0;
+			if ( '' == $rows_start ) {
+				$rows_start = 0;
+			}
 			pb_backupbuddy::status( 'details', 'Finding rows in table `' . $table . '` to update.' );
 			while ( true === $rows_remain ) { // Keep looping through rows until none remain. Looping through like this to limit memory usage as wpdb classes loads all results into memory.
 				$rowsResult = $wpdb->get_results( "SELECT `" . implode( '`,`', $rows ) . "`,`{$primary_key}` FROM `{$table}` LIMIT " . $rows_start . ',' . self::MAX_ROWS_PER_SELECT );
@@ -179,6 +196,11 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 					}
 				}
 				unset( $rowsResult );
+				
+				// See how we are doing on time. Trigger chunking if needed.
+				if ( ( ( microtime( true ) - $this->startTime ) + $this->timeWiggleRoom ) >= $this->maxExecutionTime ) {
+					return array( $rows_start );
+				}
 			}
 			
 			if ( $updated === true ) {
@@ -186,7 +208,8 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 			} else {
 				pb_backupbuddy::status( 'details', 'Nothing found to update in table `' . $table . '`.' );
 			}
-		}
+			return true;
+		} // End serialized().
 		
 		
 		/**
@@ -250,7 +273,7 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 			} else {
 				return false;
 			}
-		}
+		} // End replace_maybe_serialized().
 		
 		
 		/**
@@ -265,7 +288,7 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 		 *	@return		int						Number of rows changed.
 		 *
 		 */
-		function bruteforce_table( $table, $olds, $news ) {
+		function bruteforce_table( $table, $olds, $news, $rows_start = '' ) {
 			pb_backupbuddy::status( 'message', 'Starting brute force data migration for table `' . $table . '`...' );
 			if ( !is_array( $olds ) ) {
 				$olds = array( $olds );
@@ -319,14 +342,16 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 			
 			// Skips migration of this table if there is no primary key. Modifying on any other key is not safe. mysql automatically returns a PRIMARY if a UNIQUE non-primary is found according to http://dev.mysql.com/doc/refman/5.1/en/create-table.html  @since 2.2.32.
 			if ( $found_primary_key === false ) {
-				pb_backupbuddy::status( 'message', 'Error #9029: Table `' . $table . '` does not contain a primary key; BackupBuddy cannot safely modify the contents of this table. Skipping migration of this table. (bruteforce_table()).' );
-				return false;
+				pb_backupbuddy::status( 'warning', 'Error #9029b: Warning only! Table `' . $table . '` does not contain a primary key; BackupBuddy cannot safely modify the contents of this table. Skipping migration of this table. (bruteforce_table()).' );
+				return true;
 			}
 			
 			$row_loop = 0;
 
 			$rows_remain = true; // More rows remaining / aka another query for more rows needed.
-			$rows_start = 0;
+			if ( '' == $rows_start ) {
+				$rows_start = 0;
+			}
 
 			while ( true === $rows_remain ) { // Keep looping through rows until none remain. Looping through like this to limit memory usage as wpdb classes loads all results into memory.
 
@@ -385,13 +410,17 @@ if (!class_exists("pluginbuddy_dbreplace")) {
 				}
 
 				unset( $data );
-				
+
+				// See how we are doing on time. Trigger chunking if needed.
+				if ( ( ( microtime( true ) - $this->startTime ) + $this->timeWiggleRoom ) >= $this->maxExecutionTime ) {
+					return array( $rows_start );
+				}
 			}
 			
 			pb_backupbuddy::status( 'message', 'Brute force data migration for table `' . $table . '` complete. Checked ' . $count_items_checked . ' items; ' . $count_items_changed . ' changed.' );
 			
-			return $count_items_changed;
-		}
+			return true;
+		} // End bruteforce_table().
 		
 		
 		/**

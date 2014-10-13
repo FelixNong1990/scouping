@@ -62,8 +62,10 @@ if ( pb_backupbuddy::_GET( 'reset_disalerts' ) != '' ) {
 
 
 
-<h3><?php _e( 'Troubleshooting Log', 'it-l10n-backupbuddy' ); ?></h3>
-By default only errors are logged. Enable Full Logging on the <a href="?page=pb_backupbuddy_settings&tab=1">Advanced Settings</a> tab.
+<h3><?php _e( 'Core Log', 'it-l10n-backupbuddy' ); ?></h3>
+
+<b>This log contains logging related to the core of BackupBuddy. It does NOT include backup logs which are available from the Backups page when Full Logging is enabled.</b> By default only errors are logged. Enable Full Logging on the <a href="?page=pb_backupbuddy_settings&tab=1">Advanced Settings</a> tab.
+<br><br>
 
 <?php
 

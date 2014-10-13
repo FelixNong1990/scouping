@@ -16,6 +16,7 @@ class pb_backupbuddy_destination_dropbox { // Change class name end to match des
 		'token'			=>		'',
 		'directory'		=>		'backupbuddy',
 		'archive_limit'	=>		0,
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 	);
 	
 	private static $_init_count = 0;

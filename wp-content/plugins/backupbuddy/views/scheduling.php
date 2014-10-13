@@ -4,7 +4,7 @@
 
 /*
 echo '<pre>';
-print_r( backupbuddy_api0::getSchedules() );
+print_r( backupbuddy_api::getSchedules() );
 echo '</pre>';
 */
 
@@ -13,7 +13,7 @@ wp_print_scripts( 'thickbox' );
 wp_print_styles( 'thickbox' );
 ?>
 <script type="text/javascript">
-	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data ) {
+	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after, mode ) {
 		jQuery( '#pb_backupbuddy_remotedestinations_list' ).append( '<li id="pb_remotedestination_' + destination_id + '">' + destination_title + ' <img class="pb_remotedestionation_delete" src="<?php echo pb_backupbuddy::plugin_url(); ?>/images/redminus.png" style="vertical-align: -3px; cursor: pointer;" title="<?php _e( 'Remove remote destination from this schedule.', 'it-l10n-backupbuddy' ); ?>" /></li>' + "\n" );
 		jQuery( '#pb_backupbuddy_deleteafter' ).slideDown();
 	}

@@ -4,7 +4,6 @@ if ( ! current_user_can( pb_backupbuddy::$options['role_access'] ) ) {
 	die( 'Error #473623. Access Denied.' );
 }
 //pb_backupbuddy::verify_nonce();
-pb_backupbuddy::load_script( 'jquery' );
 
 $nextStep = 3;
 
@@ -19,8 +18,15 @@ if ( false === $status ) {
 		pb_backupbuddy::alert( 'Errors were encountered: ' . implode( ', ', $errors ) . ' If seeking support please click to Show Advanced Details above and provide a copy of the log.' );
 	}
 	return;
-} elseif ( is_numeric( $status ) ) { // Incomplete, has more to import.
+} elseif ( is_numeric( $status ) ) { // Incomplete, has more to import at a certain point.
 	$nextStep = 2; // more to do on step 2.
+} elseif ( is_array( $status ) ) { // Finished an entire SQL file, pick back up on next SQL file defined in the state.
+	$nextStep = 2; // more to do on step 2.
+} elseif ( true === $status ) { // Completely finished everything!
+	// yay.
+} else {
+	$error = 'Error #9483493: Unknown mysqlbuddy response `' . $status . '`.';
+	pb_backupbuddy::status( 'error', $error );
 }
 
 $restoreData = $rollback->getState();
@@ -38,7 +44,7 @@ $restoreData = $rollback->getState();
 <?php } ?>
 
 
-<form id="pb_backupbuddy_rollback_form" method="post" action="?action=pb_backupbuddy_rollback&step=<?php echo $nextStep; ?>&archive=<?php echo basename( $restoreData['archive'] ); ?>">
+<form id="pb_backupbuddy_rollback_form" method="post" action="?action=pb_backupbuddy_backupbuddy&function=rollback&step=<?php echo $nextStep; ?>&archive=<?php echo basename( $restoreData['archive'] ); ?>">
 	<?php pb_backupbuddy::nonce(); ?>
 	<input type="hidden" name="restoreData" value="<?php echo base64_encode( serialize( $restoreData ) ); ?>">
 	<input type="submit" name="submitForm" class="button button-primary" value="<?php echo __('Next Step') . ' &raquo;'; ?>">

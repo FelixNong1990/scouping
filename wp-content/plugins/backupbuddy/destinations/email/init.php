@@ -62,6 +62,7 @@ class pb_backupbuddy_destination_email {
 		$email = $settings['address'];
 		
 		pb_backupbuddy::status( 'details', 'Testing email destination. Sending ImportBuddy.php.' );
+		pb_backupbuddy::anti_directory_browsing( backupbuddy_core::getTempDirectory(), $die = false );
 		$importbuddy_temp = backupbuddy_core::getTempDirectory() . 'importbuddy_' . pb_backupbuddy::random_string( 10 ) . '.php.tmp'; // Full path & filename to temporary importbuddy
 		backupbuddy_core::importbuddy( $importbuddy_temp ); // Create temporary importbuddy.
 		

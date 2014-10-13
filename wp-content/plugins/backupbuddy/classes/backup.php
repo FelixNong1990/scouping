@@ -13,6 +13,7 @@ class pb_backupbuddy_backup {
 	
 	private $_errors = array();								// TODO:  No longer used? Remove?
 	private $_status_logging_started = false;				// Marked true once anything has been status logged during this process. Used by status().
+	private $_currentStepIndex = '';						// When running a backup, this is the current index in the steps array within the fileoptions.
 	
 	// PHP date() timestamp format for the backup archive filename. DATE is default.
 	const ARCHIVE_NAME_FORMAT_DATE = 'Y_m_d';				// Format when archive_name_format = date.
@@ -106,7 +107,7 @@ class pb_backupbuddy_backup {
 	 *	Initializes the entire backup process.
 	 *	
 	 *	@param		array		$profile			Backup profile array. Previously (pre-4.0): Valid values: db, full, export.
-	 *	@param		string		$trigger			What triggered this backup. Valid values: scheduled, manual.
+	 *	@param		string		$trigger			What triggered this backup. Valid values: ::d, manual.
 	 *	@param		array		$pre_backup			Array of functions to prepend to the backup steps array.
 	 *	@param		array		$post_backup		Array of functions to append to the backup steps array. Ie. sending to remote destination.
 	 *	@param		string		$schedule_title		Title name of schedule. Used for tracking what triggered this in logging. For debugging.
@@ -218,7 +219,7 @@ class pb_backupbuddy_backup {
 			pb_backupbuddy::status( 'message', __( 'Files only backup mode.', 'it-l10n-backupbuddy' ) );
 			//$profile['skip_database_dump'] = '1';
 		} elseif ( $type == 'export' ) {
-			pb_backupbuddy::status( 'message', __( 'Multisite Site Export mode.', 'it-l10n-backupbuddy' ) );
+			pb_backupbuddy::status( 'message', __( 'Multisite subsite export mode.', 'it-l10n-backupbuddy' ) );
 		} else {
 			pb_backupbuddy::status( 'error', __( 'Error #8587383: Unknown backup mode.', 'it-l10n-backupbuddy' ) ) . 'Supplied backup type: `' . htmlentities( $type ) . '`.';
 		}
@@ -244,7 +245,6 @@ class pb_backupbuddy_backup {
 		} else {
 			pb_backupbuddy::status( 'details', 'Directories verified.' );
 		}
-		
 		
 		// Delete all backup archives if this troubleshooting option is enabled.
 		if ( pb_backupbuddy::$options['delete_archives_pre_backup'] == '1' ) {
@@ -327,17 +327,19 @@ class pb_backupbuddy_backup {
 		
 		// Set up the backup data.
 		$this->_backup = array(
-			'data_version'			=>		0,												// Data structure version.
+			'data_version'			=>		1,												// Data structure version. Upped to 1 for BBv5.0.
 			'backupbuddy_version'	=>		pb_backupbuddy::settings( 'version' ),			// BB version used for this backup.
 			'serial'				=>		$serial,										// Unique identifier.
 			'init_complete'			=>		false,											// Whether pre_backup() completed or not. Other step status is already tracked and stored in data structure but pre_backup 'step' was not until now. Jan 6, 2013.
 			'backup_mode'			=>		$profile['backup_mode'],						// Tells whether modern or classic mode.
 			'type'					=>		$type,											// db, full, or export.
 			'profile'				=>		$profile,										// Backup profile data.
+			'default_profile'		=>		pb_backupbuddy::$options['profiles'][0],		// Default profile.
 			'start_time'			=>		time(),											// When backup started. Now.
 			'finish_time'			=>		0,
 			'updated_time'			=>		time(),											// When backup last updated. Subsequent steps update this.
 			'status'				=>		array(),										// TODO: what goes in this?
+			'max_execution_time'	=>		backupbuddy_core::adjustedMaxExecutionTime(),	// Max execution time for chunking, taking into account user-specified override in settings (if any).
 			'archive_size'			=>		0,
 			'schedule_title'		=>		$schedule_title,								// Title of the schedule that made this backup happen (if applicable).
 			'backup_directory'		=>		backupbuddy_core::getBackupDirectory(),			// Directory backups stored in.
@@ -359,29 +361,33 @@ class pb_backupbuddy_backup {
 			'table_sizes'			=>		array(),										// Array of tables to backup AND their sizes.
 			'breakout_tables'		=>		array(),										// Array of tables that will be broken out to separate steps.
 		);
+		pb_backupbuddy::status( 'startSubFunction', json_encode( array( 'function' => 'file_excludes', 'title' => 'Found ' . count( $this->_backup['directory_exclusions'] ) . ' file or directory exclusions.' ) ) );
 		
 		// Warn if excluding key paths.
-		$fileExcludes = backupbuddy_core::alert_core_file_excludes( $this->_backup['directory_exclusions'] );
-		foreach( $fileExcludes as $fileExcludeId => $fileExclude ) {
-			pb_backupbuddy::status( 'warning', $fileExclude );
+		$alertFileExcludes = backupbuddy_core::alert_core_file_excludes( $this->_backup['directory_exclusions'] );
+		foreach( $alertFileExcludes as $alertFileExcludeId => $alertFileExclude ) {
+			pb_backupbuddy::status( 'warning', $alertFileExclude );
 		}
-		pb_backupbuddy::status( 'startSubFunction', json_encode( array( 'function' => 'file_excludes', 'title' => 'Found ' . count( $fileExcludes ) . ' file or directory exclusions.' ) ) );
+		
+		pb_backupbuddy::anti_directory_browsing( backupbuddy_core::getTempDirectory(), $die = false );
 		
 		// Figure out paths.
 		if ( ( $this->_backup['type'] == 'full' ) || ( $this->_backup['type'] == 'files' ) ) {
-			$this->_backup['temp_directory'] = ABSPATH . 'wp-content/uploads/backupbuddy_temp/' . $serial . '/';
+			$this->_backup['temp_directory'] = backupbuddy_core::getTempDirectory() . $serial . '/';
 			$this->_backup['backup_root'] = ABSPATH; // ABSPATH contains trailing slash.
 		} elseif ( $this->_backup['type'] == 'db' ) {
-			$this->_backup['temp_directory'] = ABSPATH . 'wp-content/uploads/backupbuddy_temp/' . $serial . '/';
+			$this->_backup['temp_directory'] = backupbuddy_core::getTempDirectory() . $serial . '/';
 			$this->_backup['backup_root'] = $this->_backup['temp_directory'];
 		} elseif ( $this->_backup['type'] == 'export' ) {
 			// WordPress unzips into wordpress subdirectory by default so must include that in path.
-			$this->_backup['temp_directory'] = ABSPATH . 'wp-content/uploads/backupbuddy_temp/' . $serial . '/wordpress/wp-content/uploads/backupbuddy_temp/' . $serial . '/'; // We store temp data for export within the temporary WordPress installation within the temp directory. A bit confusing; sorry about that.
-			$this->_backup['backup_root'] = ABSPATH . 'wp-content/uploads/backupbuddy_temp/' . $serial . '/wordpress/';
+			$this->_backup['temp_directory'] = backupbuddy_core::getTempDirectory() . $serial . '/wordpress/wp-content/uploads/backupbuddy_temp/' . $serial . '/'; // We store temp data for export within the temporary WordPress installation within the temp directory. A bit confusing; sorry about that.
+			$this->_backup['backup_root'] = backupbuddy_core::getTempDirectory() . $serial . '/wordpress/';
 		} else {
 			pb_backupbuddy::status( 'error', __('Backup FAILED. Unknown backup type.', 'it-l10n-backupbuddy' ) );
 			pb_backupbuddy::status( 'haltScript', '' ); // Halt JS on page.
 		}
+		pb_backupbuddy::status( 'details', 'Temp directory: `' . $this->_backup['temp_directory'] . '`.' );
+		pb_backupbuddy::status( 'details', 'Backup root: `' . $this->_backup['backup_root'] . '`.' );
 		
 		
 		// Plugins to export (only for MS exports).
@@ -453,14 +459,17 @@ class pb_backupbuddy_backup {
 			
 			global $wpdb;
 			// Default tables to backup.
-			if ( $profile['backup_nonwp_tables'] == '1' ) { // Backup all tables.
-				$base_dump_mode = 'all';
-			} elseif ( $profile['backup_nonwp_tables'] == '2' ) { // Backup no tables by default. Relies on listed additional tables.
-				$base_dump_mode = 'none';
-			} else { // Only backup matching prefix.
+			if ( $type == 'export' ) { // Multisite Subsite export only dumps tables specific to this subsite prefix.
 				$base_dump_mode = 'prefix';
+			} else { // Non-multisite export so use profile to determine tables to backup.
+				if ( $profile['backup_nonwp_tables'] == '1' ) { // Backup all tables.
+					$base_dump_mode = 'all';
+				} elseif ( $profile['backup_nonwp_tables'] == '2' ) { // Backup no tables by default. Relies on listed additional tables.
+					$base_dump_mode = 'none';
+				} else { // Only backup matching prefix.
+					$base_dump_mode = 'prefix';
+				}
 			}
-			
 			
 			$additional_tables = $this->_backup['additional_table_includes'];
 			if ( $type == 'export' ) {
@@ -477,7 +486,7 @@ class pb_backupbuddy_backup {
 			
 			// Calculate tables to dump based on the provided information. $tables will be an array of tables.
 			$tables = $this->_calculate_tables( $base_dump_mode, $additional_tables, $this->_backup['additional_table_excludes'] );
-			pb_backupbuddy::status( 'startSubFunction', json_encode( array( 'function' => 'calculate_tabeles', 'title' => 'Found ' . count( $tables ) . ' tables to backup based on settings.' ) ) );
+			pb_backupbuddy::status( 'startSubFunction', json_encode( array( 'function' => 'calculate_tables', 'title' => 'Found ' . count( $tables ) . ' tables to backup based on settings.', 'more' => 'Tables: ' . implode( ', ', $tables ) ) ) );
 			
 			// If calculations show NO database tables should be backed up then change mode to skip database dump.
 			if ( 0 == count( $tables ) ) {
@@ -506,18 +515,19 @@ class pb_backupbuddy_backup {
 				unset( $rows );
 				unset( $tables_formatted );
 				
-				pb_backupbuddy::status( 'details', 'Total database size: `' . pb_backupbuddy::$format->file_size( $totalDatabaseSize ) . '`.' );
-				
-				// Tables we will try to break out into standalone steps if possible.
-				$breakout_tables_defaults = array(
-					$wpdb->prefix . 'posts',
-					$wpdb->prefix . 'postmeta',
-				);
+				$databaseSize = pb_backupbuddy::$format->file_size( $totalDatabaseSize );
+				pb_backupbuddy::status( 'details', 'Total calculated database size: `' . $databaseSize . '`.' );
 				
 				// Step through tables we want to break out and figure out which ones were indeed set to be backed up and break them out.
 				if ( pb_backupbuddy::$options['breakout_tables'] == '0' ) { // Breaking out DISABLED.
 					pb_backupbuddy::status( 'details', 'Breaking out tables DISABLED based on settings.' );
 				} else { // Breaking out ENABLED.
+					// Tables we will try to break out into standalone steps if possible.
+					$breakout_tables_defaults = array(
+						$wpdb->prefix . 'posts',
+						$wpdb->prefix . 'postmeta',
+					);
+					
 					pb_backupbuddy::status( 'details', 'Breaking out tables ENABLED based on settings. Tables to be broken out into individual steps: `' . implode( ', ', $breakout_tables_defaults ) . '`.' );
 					foreach( (array)$breakout_tables_defaults as $breakout_tables_default ) {
 						if ( in_array( $breakout_tables_default, $tables ) ) {
@@ -525,8 +535,9 @@ class pb_backupbuddy_backup {
 							$tables = array_diff( $tables, array( $breakout_tables_default ) ); // Remove from main table backup list.
 						}
 					}
+					unset( $breakout_tables_defaults ); // No longer needed.
 				}
-				unset( $breakout_tables_defaults ); // No longer needed.
+				
 				
 				$this->_backup['steps'][] = array(
 					'function'		=>	'backup_create_database_dump',
@@ -756,6 +767,7 @@ class pb_backupbuddy_backup {
 		
 		// Loop through steps finding first step that has not run.
 		foreach( (array)$this->_backup['steps'] as $step_index => $step ) {
+			$this->_currentStepIndex = $step_index;
 			//pb_backupbuddy::status( 'details', 'step: ' . $step['function'] . 'start: ' . $step['start_time'] );
 			if ( ( $step['start_time'] != -1 ) && ( $step['start_time'] != 0 ) && ( $step['finish_time'] == 0 ) ) { // A step is not marked for skippage, has begun but has not finished. This should not happen but the WP cron is funky. Wait a while before continuing.
 				
@@ -816,7 +828,7 @@ class pb_backupbuddy_backup {
 				if ( is_array( $arg ) ) {
 					$args .= '{' . implode( ',', $arg ) . '},';
 				} else {
-					$args .= implode( ',', $step['args'] ) . ',';
+					$args .= str_replace('],[', '|', trim(json_encode($step['args']), '[]'));
 				}
 			}
 			
@@ -882,7 +894,7 @@ class pb_backupbuddy_backup {
 			$this->_backup['updated_time'] = time();
 			$this->_backup_options->save();
 			
-			pb_backupbuddy::status( 'details', sprintf( __('Finished function `%s`. Peak memory usage', 'it-l10n-backupbuddy' ) . ': ' . round( memory_get_peak_usage() / 1048576, 3 ) . ' MB', $this->_backup['steps'][$step_index]['function'] ) );
+			pb_backupbuddy::status( 'details', sprintf( __('Finished function `%s`. Peak memory usage', 'it-l10n-backupbuddy' ) . ': ' . round( memory_get_peak_usage() / 1048576, 3 ) . ' MB', $this->_backup['steps'][$step_index]['function'] ) . ' with BackupBuddy v' . pb_backupbuddy::settings( 'version' ) ) . '.';
 			pb_backupbuddy::status( 'finishFunction', json_encode( array( 'function' => $this->_backup['steps'][$step_index]['function'] ) ) );
 			pb_backupbuddy::status( 'details', '-----' );
 			
@@ -911,7 +923,35 @@ class pb_backupbuddy_backup {
 				//pb_backupbuddy::status( 'details', 'The next should run in a moment. If it does not please check for plugin conflicts and that the next step is scheduled in the cron on the Server Information page.' );
 			}
 			
+			// If full logging, output fileoptions state data to brwoser for display in console.
+			if ( pb_backupbuddy::$options['log_level'] == '3' ) { // Full logging enabled.
+				pb_backupbuddy::status( 'backupState', json_encode( $this->_backup ) ); //base64_encode( json_encode( $this->_backup ) ) );
+			}
+			
 			return true;
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
 		}
 		
 		
@@ -1042,17 +1082,21 @@ class pb_backupbuddy_backup {
 		$totalUsers = count_users();
 		$totalUsers = $totalUsers['total_users'];
 		
+		pb_backupbuddy::status( 'startSubFunction', json_encode( array( 'function' => 'post_count', 'title' => 'Found ' . $totalPosts . ' posts, ' . $totalPages . ' pages, and ' . $totalComments . ' comments.' ) ) );
+		pb_backupbuddy::status( 'startSubFunction', json_encode( array( 'function' => 'post_count', 'title' => 'Found ' . $totalUsers . ' user accounts.' ) ) );
+		
 		$dat_content = array(
 			
 			// Backup Info.
 			'backupbuddy_version'		=> pb_backupbuddy::settings( 'version' ),
-			'wordpress_version'			=>		$wp_version,											// WordPress version.
+			'wordpress_version'			=> $wp_version,											// WordPress version.
 			'backup_time'				=> $this->_backup['start_time'],
 			'backup_type'				=> $this->_backup['type'],
 			'profile'					=> $this->_backup['profile'],
+			'default_profile'			=> pb_backupbuddy::$options['profiles'][0],				// Default profile.
 			'serial'					=> $this->_backup['serial'],
-			'trigger'					=> $trigger,													// What triggered this backup. Valid values: scheduled, manual.
-			'wp-config_in_parent'		=> $wp_config_parent,											// Whether or not the wp-config.php file is in one parent directory up. If in parent directory it will be copied into the temp serial directory along with the .sql and DAT file. On restore we will NOT place in a parent directory due to potential permission issues, etc. It will be moved into the normal location. Value set to true later in this function if applicable.
+			'trigger'					=> $trigger,											// What triggered this backup. Valid values: scheduled, manual.
+			'wp-config_in_parent'		=> $wp_config_parent,									// Whether or not the wp-config.php file is in one parent directory up. If in parent directory it will be copied into the temp serial directory along with the .sql and DAT file. On restore we will NOT place in a parent directory due to potential permission issues, etc. It will be moved into the normal location. Value set to true later in this function if applicable.
 			
 			// WordPress Info.
 			'abspath'					=> ABSPATH,
@@ -1061,10 +1105,10 @@ class pb_backupbuddy_backup {
 			'blogname'					=> get_option( 'blogname' ),
 			'blogdescription'			=> get_option( 'blogdescription' ),
 			'active_plugins'			=> implode( ', ', get_option( 'active_plugins' ) ),
-			'posts'						=>		$totalPosts,											// Total WP posts, publishes, draft, private, trash, etc.
-			'pages'						=>		$totalPages,											// Total WP pages, publishes, draft, private, trash, etc.
-			'comments'					=>		$totalComments,											// Total WP comments, approved, spam, etc
-			'users'						=>		$totalUsers,											// Total users on site.st
+			'posts'						=> $totalPosts,											// Total WP posts, publishes, draft, private, trash, etc.
+			'pages'						=> $totalPages,											// Total WP pages, publishes, draft, private, trash, etc.
+			'comments'					=> $totalComments,										// Total WP comments, approved, spam, etc
+			'users'						=> $totalUsers,											// Total users on site.st
 			
 			// Database Info. Remaining sensitive info added in after printing out DAT (for security).
 			'db_prefix'					=> $wpdb->prefix,
@@ -1133,26 +1177,44 @@ class pb_backupbuddy_backup {
 	 *	
 	 *	@return		boolean				True on success; false otherwise.
 	 */
-	function backup_create_database_dump( $tables ) {
+	function backup_create_database_dump( $tables, $rows_start = 0 ) {
 		
 		pb_backupbuddy::status( 'milestone', 'start_database' );
 		pb_backupbuddy::status( 'message', __('Starting database backup process.', 'it-l10n-backupbuddy' ) );
 		
-		if ( pb_backupbuddy::$options['force_mysqldump_compatibility'] == '1' ) {
-			pb_backupbuddy::status( 'message', 'Forcing database dump compatibility mode based on settings. Use PHP-based dump mode only.' );
-			$force_methods = array( 'php' ); // Force php mode only.
+		if ( 'php' == pb_backupbuddy::$options['database_method_strategy'] ) {
+			$force_methods = array( 'php' );
+		} elseif ( 'commandline' == pb_backupbuddy::$options['database_method_strategy'] ) {
+			$force_methods = array( 'commandline' );
+		} elseif ( 'all' == pb_backupbuddy::$options['database_method_strategy'] ) {
+			$force_methods = array( 'php', 'commandline' );
 		} else {
-			pb_backupbuddy::status( 'message', 'Using auto-detected database dump method(s) based on settings.' );
-			$force_methods = array(); // Default, auto-detect.
+			pb_backupbuddy::status( 'error', 'Error #48934: Invalid forced database dump method setting: `' . pb_backupbuddy::$options['database_method_strategy'] . '`.' );
+			return false;
 		}
-		
 		
 		// Load mysqlbuddy and perform dump.
 		require_once( pb_backupbuddy::plugin_path() . '/lib/mysqlbuddy/mysqlbuddy.php' );
 		global $wpdb;
-		pb_backupbuddy::$classes['mysqlbuddy'] = new pb_backupbuddy_mysqlbuddy( DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, $wpdb->prefix, $force_methods ); // $database_host, $database_name, $database_user, $database_pass, $old_prefix, $force_method = array()
-		$result = pb_backupbuddy::$classes['mysqlbuddy']->dump( $this->_backup['temp_directory'], $tables );
+		pb_backupbuddy::$classes['mysqlbuddy'] = new pb_backupbuddy_mysqlbuddy( DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, $wpdb->prefix, $force_methods, backupbuddy_core::adjustedMaxExecutionTime() ); // $database_host, $database_name, $database_user, $database_pass, $old_prefix, $force_method = array()
+		$result = pb_backupbuddy::$classes['mysqlbuddy']->dump( $this->_backup['temp_directory'], $tables, $rows_start ); // if array, returns tables,rowstart
 		
+		if ( is_array( $result ) ) { // Chunking.
+			$newStep = array(
+				'function'		=>	'backup_create_database_dump',
+				'args'			=>	array( $result[0], $result[1] ),
+				'start_time'	=>	0,
+				'finish_time'	=>	0,
+				'attempts'		=>	0,
+			);
+			//error_log( print_r( $this->_backup_options->options['steps'], true ) );
+			array_splice( $this->_backup_options->options['steps'], $this->_currentStepIndex + 1, 0, array( $newStep ) );
+			//error_log( print_r( $this->_backup_options->options['steps'], true ) );
+			$this->_backup_options->save();
+			pb_backupbuddy::status( 'details', 'Inserted additional database dump step at `' . ( $this->_currentStepIndex + 1 ) . '`. The next chunk will proceed shortly.' );
+		}
+		
+		// Made it this far so not chunking at this point.
 		
 		// Check and make sure mysql server is still around. If it's missing at this point we may not be able to trust that it succeeded properly.
 		/*
@@ -1281,8 +1343,7 @@ class pb_backupbuddy_backup {
 				pb_backupbuddy::$filesystem->unlink_recursive( $this->_backup['temporary_zip_directory'] );
 			}
 			
-			pb_backupbuddy::status( 'error', __('Error #3382: Backup FAILED. Unable to successfully generate ZIP archive.', 'it-l10n-backupbuddy' ) );
-			pb_backupbuddy::status( 'error', __('Error #3382 help: http://ithemes.com/codex/page/BackupBuddy:_Error_Codes#3382', 'it-l10n-backupbuddy' ) );
+			pb_backupbuddy::status( 'error', __('Error #4001: Unable to successfully generate ZIP archive. Backup FAILED. See logs above for more information.', 'it-l10n-backupbuddy' ) );
 			pb_backupbuddy::status( 'haltScript', '' ); // Halt JS on page.
 			return false;
 			
@@ -1428,6 +1489,7 @@ class pb_backupbuddy_backup {
 	 */
 	function integrity_check() {
 		
+		pb_backupbuddy::status( 'milestone', 'start_integrity' );
 		pb_backupbuddy::status( 'message', __( 'Scanning and verifying backup file integrity.', 'it-l10n-backupbuddy' ) );
 		if ( ( $this->_backup['profile']['type'] != 'files' ) && ( $this->_backup['profile']['skip_database_dump'] == '1' ) ) {
 			pb_backupbuddy::status( 'warning', 'WARNING: Database .SQL file does NOT exist because the database dump has been set to be SKIPPED based on settings. Use with caution!' );
@@ -1452,6 +1514,7 @@ class pb_backupbuddy_backup {
 			return false;
 		}
 		
+		pb_backupbuddy::status( 'milestone', 'finish_integrity' );
 		return true;
 		
 	} // End integrity_check().
@@ -1560,6 +1623,9 @@ class pb_backupbuddy_backup {
 			}
 			
 		}
+		
+		
+		backupbuddy_core::cleanTempDir();
 		
 		
 		if ( $this->_backup['trigger'] == 'manual' ) {
@@ -1684,17 +1750,17 @@ class pb_backupbuddy_backup {
 		
 		// Step 1 - Download a copy of WordPress.
 		if ( !function_exists( 'download_url' ) ) {
-			pb_backupbuddy::status( 'details', 'download_url() function not found. Loading `/wp-admin/includes/file.php`.' );
+			pb_backupbuddy::status( 'details', 'download_url() function not available by default. Loading `/wp-admin/includes/file.php`.' );
 			require_once( ABSPATH . 'wp-admin/includes/file.php' );
 		}
-		pb_backupbuddy::status( 'message', 'Downloading latest WordPress ZIP file.' );
+		pb_backupbuddy::status( 'details', 'Downloading latest WordPress ZIP file.' );
 		$wp_file = download_url( 'http://wordpress.org/latest.zip' );
 		if ( is_wp_error( $wp_file ) ) { // Grabbing WordPress ZIP failed.
 			pb_backupbuddy::status( 'error', 'Error getting latest WordPress ZIP file: `' . $wp_file->get_error_message() . '`.' );
 			return false;
 		} else { // Grabbing WordPress ZIP succeeded.
 			//error_log ('nowperror' );
-			pb_backupbuddy::status( 'details', 'Latest WordPress ZIP file successfully downloaded.' );
+			pb_backupbuddy::status( 'details', 'Latest WordPress ZIP file successfully downloaded to `' . $wp_file . '`.' );
 		}
 		
 		
@@ -1702,7 +1768,7 @@ class pb_backupbuddy_backup {
 		if ( !isset( pb_backupbuddy::$classes['zipbuddy'] ) ) {
 			pb_backupbuddy::$classes['zipbuddy'] = new pluginbuddy_zipbuddy( $this->_options['backup_directory'] );
 		}
-		pb_backupbuddy::status( 'details', 'About to unzip file.' );
+		pb_backupbuddy::status( 'details', 'About to unzip file `' . $wp_file . '` into `' . $this->_backup['backup_root'] . '`.' );
 		ob_start();
 		pb_backupbuddy::$classes['zipbuddy']->unzip( $wp_file, dirname( $this->_backup['backup_root'] ) );
 		pb_backupbuddy::status( 'details', 'Unzip complete.' );
@@ -1761,11 +1827,12 @@ class pb_backupbuddy_backup {
 		$to_file .= "\n?>";
 		
 		//Create the file, save, and close
-		$file_handle = fopen( $this->_backup['backup_root'] . 'wp-config.php', 'w' );
+		$configFile = $this->_backup['backup_root'] . 'wp-config.php';
+		$file_handle = fopen( $configFile, 'w' );
 		fwrite( $file_handle, $to_file );
 		fclose( $file_handle );
 		
-		pb_backupbuddy::status( 'message', 'Temporary WordPress wp-config.php file created.' );
+		pb_backupbuddy::status( 'message', 'Temporary WordPress wp-config.php file created at `' . $configFile . '`.' );
 		
 		return true;
 	} // End ms_create_wp_config().
@@ -2016,7 +2083,7 @@ class pb_backupbuddy_backup {
 			}
 		}
 		$users_to_capture = implode( ',', $users_to_capture );
-		pb_backupbuddy::status( 'details', 'Users to capture: ' . print_r( $users_to_capture, true ) );
+		pb_backupbuddy::status( 'details', 'User IDs to capture (' . count( $users_to_capture ) . ' total): ' . print_r( $users_to_capture, true ) );
 		
 		// Remove users from temporary table that arent associated with this site.
 		$wpdb->query( "DELETE from `{$new_user_tablename}` WHERE ID NOT IN( {$users_to_capture} )" );

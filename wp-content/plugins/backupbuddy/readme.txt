@@ -1,4 +1,4 @@
- * Website: http://goo.gl/Kotx0
+ * Website: http://pluginbuddy.com
  *
  * Installation:
  * 
@@ -12,5 +12,3 @@
  * 1. Navigate to the new menu for this plugin in the Wordpress Administration Panel
  * 2. Select 'Getting Started' for instructions and additional information.
  *
-
- More from http://goo.gl/HqQ4dR

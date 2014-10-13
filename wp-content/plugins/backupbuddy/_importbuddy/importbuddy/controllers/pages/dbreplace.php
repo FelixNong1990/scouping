@@ -7,3 +7,4 @@ Auth::require_authentication(); // Die if not logged in.
 
 $data = array();
 pb_backupbuddy::load_view( 'dbreplace', $data );
+?><script>jQuery( '#pageTitle' ).html( 'Database Text Replace' );</script>

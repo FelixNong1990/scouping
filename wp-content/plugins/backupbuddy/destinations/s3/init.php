@@ -29,6 +29,8 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 		'manage_all_files'			=>		'1',		// Allow user to manage all files in S3? If enabled then user can view all files after entering their password. If disabled the link to view all is hidden.
 		'region'					=>		's3.amazonaws.com',	// Endpoint to create buckets in. Although named region this is technically the ENDPOINT.
 		'storage'					=>		'standard',	// Whether to use standard or reduced redundancy storage. Allowed values: standard, reduced
+		'use_packaged_cert'			=>		'0',		// When 1, use the packaged cacert.pem file included with the AWS SDK.
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 		
 		// Do not store these for destination settings. Only used to pass to functions in this file.
 		'_multipart_id'				=>		'',			// Instance var. Internal use only for continuing a chunked upload.
@@ -50,7 +52,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 	 *	@param		array			$files			Array of one or more files to send.
 	 *	@return		boolean|array					True on success, false on failure, array if a multipart chunked send so there is no status yet.
 	 */
-	public static function send( $settings = array(), $files = array(), $send_id = '' ) {
+	public static function send( $settings = array(), $files = array(), $send_id = '', $delete_after = false ) {
 		
 		global $pb_backupbuddy_destination_errors;
 		$backup_type_dir = '';
@@ -146,7 +148,8 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 			if ( !isset( $settings['_multipart_counts'][ $settings['_multipart_partnumber'] ] ) ) { // No more parts exist for this file. Tell S3 the multipart upload is complete and move on.
 				pb_backupbuddy::status( 'details', 'S3 getting parts with etags to notify S3 of completed multipart send.' );
 				$etag_parts = $s3->list_parts( $manage_data['bucket'], $settings['_multipart_remotefile'], $settings['_multipart_id'] );
-				pb_backupbuddy::status( 'details', 'S3 got parts list. Notifying S3 of multipart upload completion.' );
+				pb_backupbuddy::status( 'details', 'S3 got parts list. Details: ' . print_r( $etag_parts, true ) );
+				pb_backupbuddy::status( 'details', 'Notifying S3 of multipart upload completion.' );
 				$response = $s3->complete_multipart_upload( $manage_data['bucket'], $settings['_multipart_remotefile'], $settings['_multipart_id'], $etag_parts );
 				if(!$response->isOK()) {
 					$this_error = 'S3 unable to notify S3 of completion of all parts for multipart upload `' . $settings['_multipart_id'] . '`.';
@@ -186,7 +189,13 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 			// Schedule to continue if anything is left to upload for this multipart of any individual files.
 			if ( ( $settings['_multipart_id'] != '' ) || ( count( $files ) > 0 ) ) {
 				pb_backupbuddy::status( 'details', 'S3 multipart upload has more parts left. Scheduling next part send.' );
-				$schedule_result = backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'destination_send' ), array( $settings, $files, $send_id ) );
+				
+				$cronTime = time();
+				$cronArgs = array( $settings, $files, $send_id, $delete_after );
+				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
+				$cronArgs[] = $cronHashID;
+				
+				$schedule_result = backupbuddy_core::schedule_single_event( $cronTime, pb_backupbuddy::cron_tag( 'destination_send' ), $cronArgs );
 				if ( true === $schedule_result ) {
 					pb_backupbuddy::status( 'details', 'Next S3 chunk step cron event scheduled.' );
 				} else {
@@ -303,7 +312,13 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 				
 				// Schedule to process the parts.
 				pb_backupbuddy::status( 'details', 'S3 scheduling send of next part(s).' );
-				backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'destination_send' ), array( $multipart_destination_settings, $files, $send_id ) );
+				
+				$cronTime = time();
+				$cronArgs = array( $multipart_destination_settings, $files, $send_id, $delete_after );
+				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
+				$cronArgs[] = $cronHashID;
+				
+				backupbuddy_core::schedule_single_event( $cronTime, pb_backupbuddy::cron_tag( 'destination_send' ), $cronArgs );
 				spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 				update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 				pb_backupbuddy::status( 'details', 'S3 scheduled send of next part(s). Done for this cycle.' );
@@ -483,6 +498,9 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 	 */
 	public static function test( $settings ) {
 		
+		if ( class_exists( 'CFRuntime' ) ) {
+			die( 'CFRuntime already defined. Another plugin may be incorrectly loading its copy of S3 libraries on BackupBuddy pages.' );
+		}
 		require_once( dirname( dirname( __FILE__ ) ) . '/_s3lib/aws-sdk/sdk.class.php' );
 		
 		$remote_path = self::get_remote_path( $settings['directory'] ); // Has leading and trailng slashes.
@@ -604,11 +622,18 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 		
 		$settings['bucket'] = strtolower( $settings['bucket'] ); // Buckets must be lowercase.
 		
-		return array(
+		$credentials = array(
 			'bucket'	=> $settings['bucket'],
 			'key' 		=> $settings['accesskey'],
 			'secret'	=> $settings['secretkey'],
 		);
+
+		if ( '1' == $settings['use_packaged_cert'] ) {
+			pb_backupbuddy::status( 'details', 'Using packaged cacert.pem file based on destination settings.' );
+			$credentials['ssl.certificate_authority'] = pb_backupbuddy::plugin_path() . '/destinations/_s3lib/aws-sdk/lib/requestcore/cacert.pem';
+		}
+		
+		return $credentials;
 		
 	} // End get_manage_data().
 	
@@ -807,7 +832,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 		// Region/endpoint used based on user-defined setting.
 		if ( ( true === $maybe_create_bucket ) && ( true === $createBucket ) ) {
 		
-			pb_backupbuddy::status( 'details', 'Attempting to create bucket `' . $settings['bucket'] . '` at region endpoint `' . $settings['region'] . '`.' );
+			pb_backupbuddy::status( 'details', 'Attempting to create bucket `' . $settings['bucket'] . '` at region endpoint `' . $settings['region'] . '` (detected region: `' . $region . '`).' );
 			try {
 				$response = $s3->create_bucket(
 					$settings['bucket'],
@@ -815,7 +840,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 					AmazonS3::ACL_PRIVATE
 				);
 			} catch( Exception $e ) {
-				$message = 'Exception while trying to create bucket `' . $settings['bucket'] . '` at region endpoint `' . $settings['region'] . '`. Details: `' . $e->getMessage() . '`.';
+				$message = 'Exception while trying to create bucket `' . $settings['bucket'] . '` at region endpoint `' . $settings['region'] . '` (detected region: `' . $region . '`). Details: `' . $e->getMessage() . '`.';
 				pb_backupbuddy::status( 'error', $message );
 				echo $message;
 				return false;
@@ -823,7 +848,7 @@ class pb_backupbuddy_destination_s3 { // Change class name end to match destinat
 			
 			if ( ! $response->isOK() ) { // Bucket creation FAILED.
 			
-				$message = 'Failure creating bucket `' . $settings['bucket'] . '` at region endpoint `' . $settings['region'] . '`. Message details: `' . (string)$response->body->Message . '`.';
+				$message = 'Failure creating bucket `' . $settings['bucket'] . '` at region endpoint `' . $settings['region'] . '` (detected region: `' . $region . '`). Message details: `' . (string)$response->body->Message . '`.';
 				pb_backupbuddy::status( 'details', $message );
 				echo $message;
 				return false;

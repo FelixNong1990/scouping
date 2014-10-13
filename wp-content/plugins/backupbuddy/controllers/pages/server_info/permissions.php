@@ -12,9 +12,11 @@ $directories = array(
 	rtrim( $uploads_dirs['basedir'], '\\/' ) . '/',
 	ABSPATH . 'wp-includes/',
 	backupbuddy_core::getBackupDirectory(),
-	backupbuddy_core::getTempDirectory(),
 	backupbuddy_core::getLogDirectory(),
 );
+if ( @file_exists( backupbuddy_core::getTempDirectory() ) ) { // This dir is usually transient so may not exist.
+	$directories[] = backupbuddy_core::getTempDirectory();
+}
 
 
 foreach( $directories as $directory ) {

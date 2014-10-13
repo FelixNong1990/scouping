@@ -4,7 +4,7 @@
 
 
 $max_importbuddy_age = 60*60*1; // 1hr - Max age, in seconds, importbuddy files can be there before cleaning up (delay useful if just imported and testing out site).
-$max_status_log_age = 48; // Max age in hours.
+$max_status_log_age = 60*60*48; // Max age in seconds of old logs. -- 48 hours
 $max_site_log_size = pb_backupbuddy::$options['max_site_log_size'] * 1024 * 1024; // in bytes.
 
 pb_backupbuddy::status( 'message', 'Starting cleanup procedure for BackupBuddy v' . pb_backupbuddy::settings( 'version' ) . '.' );
@@ -16,6 +16,16 @@ if ( !isset( pb_backupbuddy::$options ) ) {
 
 // Clean up any old rollback undo files hanging around.
 $files = (array)glob( ABSPATH . 'backupbuddy_rollback*' );
+foreach( $files as $file ) {
+	$file_stats = stat( $file );
+	if ( ( time() - $file_stats['mtime'] ) > $max_status_log_age ) {
+		@unlink( $file );
+	}
+}
+
+
+// Clean up any old cron file transfer locks.
+$files = (array)glob( backupbuddy_core::getLogDirectory() . 'cronSend-*' );
 foreach( $files as $file ) {
 	$file_stats = stat( $file );
 	if ( ( time() - $file_stats['mtime'] ) > $max_status_log_age ) {
@@ -102,12 +112,13 @@ backupbuddy_core::trim_remote_send_stats( $backup_age_limit );
 
 
 // Verify directory existance and anti-directory browsing is in place everywhere.
-backupbuddy_core::verify_directories();
+backupbuddy_core::verify_directories( $skipTempGeneration = true );
 
 
 require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
 
-// Purge fileoptions files without matching backup file in existance that are older than 30 days.
+// Mark any backups noted as in progress to timed out if taking too long. Send error email is scheduled and failed or timed out.
+// Also, Purge fileoptions files without matching backup file in existance that are older than 30 days.
 pb_backupbuddy::status( 'details', 'Cleaning up old backup fileoptions option files.' );
 $fileoptions_directory = backupbuddy_core::getLogDirectory() . 'fileoptions/';
 $files = glob( $fileoptions_directory . '*.txt' );
@@ -120,6 +131,55 @@ foreach( $files as $file ) {
 		pb_backupbuddy::status( 'error', 'Error retrieving fileoptions file `' . $file . '`. Err 335353266.' );
 	} else {
 		if ( isset( $backup_options->options['archive_file'] ) ) {
+			//error_log( print_r( $backup_options->options, true ) );
+			
+			
+			if ( ( $backup_options->options['finish_time'] >= $backup_options->options['start_time'] ) && ( 0 != $backup_options->options['start_time'] ) ) {
+				// Completed
+			} elseif ( $backup_options->options['finish_time'] == -1 ) {
+				// Cancelled manually
+			} elseif ( FALSE === $backup_options->options['finish_time']  ) {
+				// Failed.
+			} else {
+				// Timed out or in progress.
+				$status = '<span class="pb_label pb_label-warning">In progress or timed out</span>';
+				if ( ( $backup_options->options['updated_time'] - time() ) > 60*60*24 ) { // If 24hrs passed since last update to backup then mark this timeout as failed.
+					$backup_options->options['finish_time'] = FALSE;
+					
+					if ( 'scheduled' == $backup_options->options['trigger'] ) {
+						
+						// Determine the first step to not finish.
+						$timeoutStep = '';
+						foreach( $backup_options->options['steps'] as $step ) {
+							if ( 0 == $step['finish_time'] ) {
+								$timeoutStep = $step['function'];
+								break;
+							}
+						}
+						
+						$timeoutMessage = '';
+						if ( '' != $timeoutStep ) {
+							if ( 'backup_create_database_dump' == $timeoutStep ) {
+								$timeoutMessage = 'The database dump step appears to have timed out. Make sure your database is not full of unwanted logs or clutter.';
+							} elseif ( 'backup_zip_files' == $timeoutStep ) {
+								$timeoutMessage = 'The zip archive creation step appears to have timed out. Try turning off zip compression to significantly speed up the process or exclude large files.';
+							} elseif ( 'send_remote_destination' == $timeoutStep ) {
+								$timeoutMessage = 'The remote transfer step appears to have timed out. Try turning on chunking in the destination settings to break up the file transfer into multiple steps.';
+							} else {
+								$timeoutMessage = 'The step function `' . $timeoutStep . '` appears to have timed out.';
+							}
+						}
+						
+						$error_message = 'BackupBuddy backup failed. ' . $timeoutMessage . ' Check the error log for further details and/or manually create a backup to test for problems.';
+						pb_backupbuddy::status( 'error', 'Scheduled backup failed, possible due to timeout.' );
+						backupbuddy_core::mail_error( $error_message );
+					}
+					
+					$backup_options->save();
+				}
+			}
+			
+			
 			if ( ! file_exists( $backup_options->options['archive_file'] ) ) { // No corresponding backup ZIP file.
 				$modified = filemtime( $file );
 				if ( ( time() - $modified ) > backupbuddy_core::MAX_SECONDS_TO_KEEP_ORPHANED_FILEOPTIONS_FILES ) { // Too many days old so delete.
@@ -191,23 +251,8 @@ if ( file_exists( ABSPATH . 'importbuddy/' ) ) {
 
 
 
-// Remove any old temporary directories in wp-content/uploads/backupbuddy_temp/. Logs any directories it cannot delete.
-pb_backupbuddy::status( 'details', 'Cleaning up any old temporary zip directories in: wp-content/uploads/backupbuddy_temp/' );
-$temp_directory = backupbuddy_core::getTempDirectory();
-$files = glob( $temp_directory . '*' );
-if ( is_array( $files ) && !empty( $files ) ) { // For robustness. Without open_basedir the glob() function returns an empty array for no match. With open_basedir in effect the glob() function returns a boolean false for no match.
-	foreach( $files as $file ) {
-		if ( ( strpos( $file, 'index.' ) !== false ) || ( strpos( $file, '.htaccess' ) !== false ) ) { // Index file or htaccess dont get deleted so go to next file.
-			continue;
-		}
-		$file_stats = stat( $file );
-		if ( ( 0 == $backup_age_limit ) || ( ( time() - $file_stats['mtime'] ) > $backup_age_limit ) ) { // If older than 12 hours, delete the log.
-			if ( @pb_backupbuddy::$filesystem->unlink_recursive( $file ) === false ) {
-				pb_backupbuddy::status( 'error', 'Unable to clean up (delete) temporary directory/file: `' . $file . '`. You should manually delete it or check permissions.' );
-			}
-		}
-	}
-}
+backupbuddy_core::cleanTempDir( $backup_age_limit );
+
 
 
 // Cleanup any temp files from a failed restore within WordPress. (extract file feature).
@@ -278,6 +323,52 @@ foreach( pb_backupbuddy::$options['rollback_cleanups'] as $cleanup_serial => $st
 		pb_backupbuddy::save();
 	}
 }
+
+
+
+// Cleanup any cron schedules pointing to non-existing schedules.
+$cron = get_option('cron');
+// Loop through each cron time to create $crons array for displaying later.
+$crons = array();
+foreach ( (array) $cron as $time => $cron_item ) {
+	if ( is_numeric( $time ) ) {
+		// Loop through each schedule for this time
+		foreach ( (array) $cron_item as $hook_name => $event ) {
+			foreach ( (array) $event as $item_name => $item ) {
+				
+				if ( 'pb_backupbuddy-cron_scheduled_backup' == $hook_name ) { // scheduled backup
+					if ( !empty( $item['args'] ) ) {
+						
+						if ( ! isset( pb_backupbuddy::$options['schedules'][ $item['args'][0] ] ) ) { // BB schedule does not exist so delete this cron item.
+							if ( FALSE === backupbuddy_core::unschedule_event( $time, $hook_name, $item['args'] ) ) { // Delete the scheduled cron.
+								pb_backupbuddy::status( 'error', 'Error #5657667675b. Unable to delete CRON job. Please see your BackupBuddy error log for details.' );
+							} else {
+								pb_backupbuddy::status( 'details', 'Removed stale cron scheduled backup.' );
+							}
+						}
+						
+					} else { // No args, something wrong so delete it.
+						
+						if ( FALSE === backupbuddy_core::unschedule_event( $time, $hook_name, $item['args'] ) ) { // Delete the scheduled cron.
+							pb_backupbuddy::status( 'error', 'Error #5657667675c. Unable to delete CRON job. Please see your BackupBuddy error log for details.' );
+						} else {
+							pb_backupbuddy::status( 'details', 'Removed stale cron scheduled backup which had no arguments.' );
+						}
+						
+					}
+				}
+				
+			} // End foreach.
+			unset( $item );
+			unset( $item_name );
+		} // End foreach.
+		unset( $event );
+		unset( $hook_name );
+	} // End if is_numeric.
+} // End foreach.
+unset( $cron_item );
+unset( $time );
+
 
 
 @clearstatcache(); // Clears file info stat cache.

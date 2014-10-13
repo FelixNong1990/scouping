@@ -11,8 +11,14 @@ class pb_backupbuddy_dashboard extends pb_backupbuddy_dashboardcore {
 	 */
 	function stats() {
 
-		$getOverview = backupbuddy_api0::getOverview();
-		$backup_url = 'admin.php?page=pb_backupbuddy_backup';
+		$getOverview = backupbuddy_api::getOverview();
+		
+		if ( is_network_admin() ) {
+			$backup_url = network_admin_url( 'admin.php' );
+		} else {
+			$backup_url = admin_url( 'admin.php' );
+		}
+		$backup_url .= '?page=pb_backupbuddy_backup';
 		
 		
 		// Red-Green status for editsSinceLastBackup
@@ -79,7 +85,11 @@ class pb_backupbuddy_dashboard extends pb_backupbuddy_dashboardcore {
 					<li>
 						<div class="list-wrapper">
 							<div class="list-title">
-								<a href="<?php if ( isset( $getOverview['lastBackupStats']['archiveURL'] ) ) { echo $getOverview['lastBackupStats']['archiveURL']; } ?>"><?php _e( 'Download', 'it-l10n-backupbuddy' ); ?></a>
+								<?php if ( isset( $getOverview['lastBackupStats']['archiveFile'] ) && file_exists( backupbuddy_core::getBackupDirectory() . $getOverview['lastBackupStats']['archiveFile'] ) ) { ?>
+									<a href="<?php if ( isset( $getOverview['lastBackupStats']['archiveURL'] ) ) { echo $getOverview['lastBackupStats']['archiveURL']; } ?>"><?php _e( 'Download', 'it-l10n-backupbuddy' ); ?></a>
+								<?php } else { ?>
+									<i>Stored offsite or deleted</i>
+								<?php } ?>
 							</div>
 							<div class="list-description">
 								<div class="backup-type description-item">

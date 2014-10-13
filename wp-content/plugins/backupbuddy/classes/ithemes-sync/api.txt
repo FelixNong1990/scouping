@@ -17,6 +17,7 @@ backupbuddy-get-overview
 				scheduleCount- Number of schedules.
 				profileCount- Number of profiles.
 				destinationCount- Number of destinations.
+				gmtOffset- Offset for timestamp on server from GMT. From get_option( 'gmt_offset' ). [As of verb API 5].
 				notifications- Array of string notifications, such as that backups are failing.
 
 
@@ -146,4 +147,98 @@ backupbuddy-get-importbuddy
 			status- Whether or not the action succeeded. Possible values: ok, error
 			message- Text status message.
 			importbuddy- base64 encoded importbudy.php file contents.
+			importbuddy_hash- md5 hash of importbuddy contents to insure it transfers perfectly.
+
+
+backupbuddy-add-schedule
+	Description:
+		Creates a new backup schedule.
+	Arguments:
+		title- (string) User-specified title of schedule. Please strip tags.
+		profile- (int) Profile ID number (numeric).
+		interval- (string) Tag interval for schedule for WP cron. ie. hourly, daily, twicedaily, weekly, twiceweekly, monthly, twicemonthly
+		firstRun- (int) Timestamp of first runtime. Take care to handle timezone of server (gmtOffset provided in backupbuddy-get-overview) as well as timezone of user's browser.
+		destinations- (array) Destination IDs to send to after the schedule completes running.
+		deleteAfter- (bool) Whether or not to delete the local copy of the backup after sending to a destination (if applicable).
+		enabled- (bool) Whether or not this schedule is currently enabled (active) to be able to run.
+	Return Array:
+			api- API version of this function. Increments of the output of this function changes.
+			status- Whether or not the action succeeded. Possible values: ok, error
+			message- Text status message.
+			scheduleID- Numeric ID number of the new just-added schedule.
+
+
+backupbuddy-delete-schedule
+	Description:
+		Delete an existing schedule. Also handles unscheduling in WP cron.
+	Arguments:
+		id- (int) Numeric ID of the schedule to delete (array key).
+	Return Array:
+			api- API version of this function. Increments of the output of this function changes.
+			status- Whether or not the action succeeded. Possible values: ok, error
+			message- Text status message.
+
+
+backupbuddy-list-destinationTypes
+	Description:
+		Lists the types of destinations available on this server for creation.
+	Arguments:
+		none
+	Return Array:
+			api- API version of this function. Increments of the output of this function changes.
+			status- Whether or not the action succeeded. Possible values: ok, error
+			message- Text status message.
+			destinations- Array of destinations that could be created on this server.
+
+
+backupbuddy-test-destination
+	Description:
+		Test provided destination settings. Can be tested prior to creation. Accepts the exact settings also used for backupbuddy-add-destination verb.
+	Arguments:
+		settings- (array) Destination settings.
+	Return Array:
+			api- API version of this function. Increments of the output of this function changes.
+			status- Whether or not the action succeeded. Possible values: ok, error
+			message- Text status message.
+			[Note: Returns error if test fails. Descriptive cause of test failure supplied in the message field.]
+
+
+backupbuddy-delete-destination
+	Description:
+		Delete an existing destination. Handles stripping from existing scheduled destinations.
+	Arguments:
+		id- Numeric destination ID number.
+	Return Array:
+			api- API version of this function. Increments of the output of this function changes.
+			status- Whether or not the action succeeded. Possible values: ok, error
+			message- Text status message.
+
+
+backupbuddy-get-destinationSettings
+	Description:
+		Retrieve the settings for an existing destination.
+	Arguments:
+		id- (int) Numeric destination ID number.
+	Return Array:
+			api- API version of this function. Increments of the output of this function changes.
+			status- Whether or not the action succeeded. Possible values: ok, error
+			message- Text status message.
+			settings- Array of all the settings for this destination.
+
+
+backupbuddy-add-destination
+	Description:
+		Create a new destionation.
+	Arguments:
+		settings- (array) Destination settings for the new destinatino. This should be the complete destination settings array.
+					Defaults are applied by BackupBuddy whenever these settings are called so defaults shoudl not be mandatory.
+					These settings are NOT validated and are expected to be trusted and functional. Use the test verb for testing these same settings.
+					Accepts the exact settings also used for backupbuddy-test-destination verb.
+	Return Array:
+			api- API version of this function. Increments of the output of this function changes.
+			status- Whether or not the action succeeded. Possible values: ok, error
+			message- Text status message.
+
+
+
 

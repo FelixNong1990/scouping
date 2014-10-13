@@ -82,19 +82,32 @@
 	
 	
 	
-	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data ) {
+	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after, mode ) {
+		if ( 'destination' == mode ) { // Normal destination send.
+			triggerText = 'manual';
+		} else if ( 'migration' == mode ) { // Migration.
+			triggerText = 'migration';
+		} else { // Unknown mode.
+			alert( 'Error #388484: Unknown mode `' + mode + '`.' );
+			return false;
+		}
+		
 		if ( callback_data != '' ) {
 			if ( callback_data == 'importbuddy.php' ) {
 				window.location.href = '<?php echo pb_backupbuddy::page_url(); ?>&destination=' + destination_id + '&destination_title=' + destination_title + '&callback_data=' + callback_data;
 				return false;
 			}
-			jQuery.post( '<?php echo pb_backupbuddy::ajax_url( 'remote_send' ); ?>', { destination_id: destination_id, destination_title: destination_title, file: callback_data, trigger: 'migration', send_importbuddy: '1' }, 
+			jQuery.post( '<?php echo pb_backupbuddy::ajax_url( 'remote_send' ); ?>', { destination_id: destination_id, destination_title: destination_title, file: callback_data, trigger: triggerText, send_importbuddy: '1' }, 
 				function(data) {
 					data = jQuery.trim( data );
 					if ( data.charAt(0) != '1' ) {
-						alert( '<?php _e('Error starting remote send of file to migrate', 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
+						alert( '<?php _e("Error starting remote send of file to migrate", 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
 					} else {
-						window.location.href = '<?php echo pb_backupbuddy::page_url(); ?>&destination=' + destination_id + '&destination_title=' + destination_title + '&callback_data=' + callback_data;
+						if ( 'migration' == mode ) {
+							window.location.href = '<?php echo pb_backupbuddy::page_url(); ?>&destination=' + destination_id + '&destination_title=' + destination_title + '&callback_data=' + callback_data;
+							return;
+						}
+						alert( "<?php _e('Your file has been scheduled to be sent now. It should arrive shortly.', 'it-l10n-backupbuddy' ); ?> <?php _e( 'You will be notified by email if any problems are encountered.', 'it-l10n-backupbuddy' ); ?>\n\n" + data.slice(1) );
 					}
 				}
 			);
@@ -167,14 +180,17 @@ site/backup specific.
 </ol>
 
 
-
+<?php
+/*
 <br>
 <h3>Database Rollback</h3>
 You may roll back the database on this site to a database contained in a backup (full or database only) by selecting the "Rollback Database" option when
 hovering below. This lets you easily undo changes made to the site. You will be given the opportunity to verify the rollback was successful
 before making it permanent.
 <br><br><br>
-
+*/
+?>
+<br><br>
 
 
 <h3 id="pb_backupbuddy_restoremigratelisttitle">Hover Backup for Additional Options</h3>
@@ -185,6 +201,14 @@ $listing_mode = 'restore_migrate';
 require_once( '_backup_listing.php' );
 
 
+echo '<br><br>';
+
+
+//require_once( '_deployments.php' );
+
+
+
+
 
 
 
@@ -193,8 +217,16 @@ echo '<small>';
 if ( pb_backupbuddy::$options['importbuddy_pass_hash'] == '' ) {
 	echo '<a class="description" onclick="alert(\'' . __( 'Please set a RepairBuddy password on the BackupBuddy Settings page to download this script. This is required to prevent unauthorized access to the script when in use.', 'it-l10n-backupbuddy' ) . '\'); return false;" href="" style="text-decoration: none;" title="' . __( 'Download the troubleshooting & repair script, repairbuddy.php', 'it-l10n-backupbuddy' ) . '">';
 } else {
-	echo '<a class="description" href="' . admin_url( 'admin-ajax.php' ) . '?action=pb_backupbuddy_repairbuddy" style="text-decoration: none;" title="' . __('Download the troubleshooting & repair script, repairbuddy.php', 'it-l10n-backupbuddy' ) . '">';
+	echo '<a class="description" href="' . admin_url( 'admin-ajax.php' ) . '?action=pb_backupbuddy_backupbuddy&function=repairbuddy" style="text-decoration: none;" title="' . __('Download the troubleshooting & repair script, repairbuddy.php', 'it-l10n-backupbuddy' ) . '">';
 }
 echo __( 'Download RepairBuddy troubleshooting & repair tool.', 'it-l10n-backupbuddy' ) . '</a>';
 echo '</small>';
+
+
+
+// Handles thickbox auto-resizing. Keep at bottom of page to avoid issues.
+if ( !wp_script_is( 'media-upload' ) ) {
+	wp_enqueue_script( 'media-upload' );
+	wp_print_scripts( 'media-upload' );
+}
 ?>

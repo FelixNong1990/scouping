@@ -606,5 +606,326 @@
 	Fixed broken Server Tools link on bottom of Scheduling page.
 	Added microsecond tracking to logs down to 1/100th of a second.
 	Fixed Remote Destination send log not displaying in friendly format.
-
-Downloaded from 96down.com
+4.2.16.1 - 2014-04-28 - Dustin Bolton
+	Full release of 4.2.15.x quick release versions.
+	Now including global profile in backup array and DAT file for improved logging and troubleshooting.
+	Changed internal API class to backupbuddy_api.
+	Fixed issue with French translation containing single quotes breaking javascript.
+	Fixed ImportBuddy generation and passing to Sync API. - Jordan
+	backupbuddy-get-importbuddy Sync verb now generated MD5 hash. - Jordan
+4.2.16.2 - 2014-04-29 - Dustin Bolton
+	Additional sanitizing login added when calculating backup directory for exclusion purposes to better handle Windows path mismatches & network-based paths.
+4.2.16.4 - 2014-05-05 - Dustin Bolton
+	Fixed directory exclusion failing to exclude files/directories with dot (.) in them.
+	Fixed file changed ctime() call to file modified mtime() call for integrity check.
+4.2.16.5 - 2014-05-13 - Dustin Bolton
+	Updated xzipbuddy (alternate zip system beta) supporting bursting for improved large site support. - Jeremy Trask
+	Added IT Security dismissible notice to Malware Scan page.
+	FEATURE:
+		All destinations now support the option to disable remote file management.
+	Backup directory was not correct when solely / and some cases of problems with network paths on Windows beginning with \\.
+	Improvements in preventing the backup status from stalling during backup due to long AJAX timeouts.
+	All new destinations now have chunking enabled by default (typically 100mb).
+	Stash & S3 now include options to use included SSL certificate to address problems with some servers using old or incomplete certificate bundles.
+4.2.16.7 - 2014-05-14 - Dustin Bolton
+	ImportBuddy: mysql_test.php no longer directly uses $_POST variable to avoid triggering FALSE positives of potential various malware scanners.
+	Fixed missing 4.2.16.5 version history items.
+4.2.16.8 - 2014-05-15 - Dustin Bolton
+	ImportBuddy: mysql_test.php typo fix resulting in error.
+4.2.16.9 - 2014-07-15 - Dustin Bolton
+	Fixed additional temp directory exclusions missing trailing slash during generation.
+	Added additional logging to rollback to report SQL error when renaming tables fails.
+	Updated zipbuddy library. - Jeremy
+		Burst size reduced to 20 seconds (down from 40). Subsequent busts throttled down as needed.
+		Internally added inclusion/exclusion based backup support as well as PCRE expressions for these for future use.
+	Removed mysqlbuddy echoing to avoid triggering server problems in some rare situations. Possible PHP / server environment issue.
+	ENHANCEMENT:
+		Added additional API methods for calling by 3rd party plugins. See classes/api.txt for details. More documentation coming soon.
+		Added new method backupbuddy_api::runBackup().
+		Added new method backupbuddy_api::getLatestBackupStats().
+4.2.16.10 - 2014-07-17 - Dustin Bolton
+	Added trailing slash to directory size listing for consistency with actual exclusions when displayed.
+	Removed tests from lib directory.
+4.2.16.11 - 2014-07-18 - Dustin Bolton
+	Fixed reversion causing some directory exclusions to not be excluded with periods in them. Introduced in 4.2.16.9.
+4.2.16.13 - 2014-08-18 - Dustin Bolton
+	BackupBuddy v5.0 Pre-Release: See changelog for version 5.0.0 below!
+4.2.16.15 - 2014-08-19 - Dustin Bolton
+	Fixed integrity check failing for command-line based backups.
+	Removed Deployments page.
+	Fixed integrity scan not pulling in all data for legacy backup files.
+	Fixed PHP notice for integrity scan of older backup files.
+	Improved performance of integrity scan results caching.
+	Fixed checkbox checks not being centered within checkbox on Remote Destinations configuration page.
+5.0.0.0 - 2014-08-20 - Dustin Bolton
+	OVERVIEW:
+		This release focuses on improving core functionality to the next level on both the backup and restore side.  Performance, robustness, and usability have all been
+		improved in this release.  This means that BackupBuddy and ImportBuddy are easier to use & understand as well as better handling larger sites better, especially
+		large databases.  More advanced handling of problems and various fallbacks and intelligent checks (eg to handle .htaccess AddHandler issues) help to work around
+		previous issues. If something does go wrong that cannot be worked around BackupBuddy or ImportBuddy will look at the situation and give contextually appropriate
+		information to help you resolve the problem without having to seek outside help or reference.  Improved persistant logging helps track processes for
+		troubleshooting if support is still needed.
+	FEATURE
+		Backup interface overhaul. - Bradford Ulrich
+		Continous overview of the process with active updating during its progression.
+		Backup details are displayed as the backup runs, providing help as needed.
+		Upon backup failure the Status log is highlighted for reference.
+	FEATURE:
+		BackupBuddy intelligently attempts to discern common backup issues and provide appropriate help and information for resolving the issue.
+	FEATURE:
+		Improved integrity scanning.  Be even more assured of backup integrity as database backup files are now verified to exist in backups at a table level.
+	ENHANCEMENT:
+		Backup progress now shows database file size growing as backup commences.
+	FEATURE:
+		ImportBuddy interface overhaul.
+		Easier to use, more intuitive, many new features.
+	FEATURE:
+		New destinations UI with easier to user tabbed display of destinations.
+		Remote destination files & management are now displayed when viewing the remote destination page tabs for easy viewing and managing remote files.
+	FEATURE:
+		ImportBuddy: Database import step imports in chunks to handle larger databases.
+	FEATURE:
+		ImportBuddy: Database migration step migrates URLs, paths, etc in chunks to handle larger databases.
+	FEATURE:
+		Larger database support. MySQL import & dump now support resumable chunking for working with very large databases.
+		PHP-based dumping is now the default.
+		Both PHP-based and command line now break up dumping individual tables to individual .SQL files for easier importing, optionally selectively importing specific tables.
+		Integrity scan takes this into account for more robust database dump verification (when applicable and available).
+	FEATURE:
+		Database Rollback
+		Easily roll back the database to a prior version from within WordPress. Ability to undo changes on failure.
+	FEATURE:
+		ImportBuddy: Restores of full backups now allow the option to only restore files or only restore the database.
+	FEATURE:
+		Database backups now dump database tables to individual SQL files for easier or selective restoring of tables, especially if manually importing.
+	FEATURE:
+		All destinations which supported remote file management now have the option to disable this capability.
+	ENHANCEMENT:
+		Server Information section now displays whether or not PHP error logging is enabled, whether errors are displayed to screen, and the location of the log file. The error logging can also be tested to verify it is functioning properly.
+	ENHANCEMENT:
+		Timed out backups are now marked as Failed after 24 hours of no activity to the backup.
+		Error notification email is sent of this failed backup is triggered by a schedule.
+		If a step is detected to be timed out then suggestions will be given on fixing the issue.
+	ENHANCEMENT:
+		Remote transfer error notification emails now attach the remote send log to the notification email if available.
+	ENHANCEMENT:
+		Mass deletion of backups by the user on the Backups page now prompts for confirmation before proceeding.
+	FEATURE:
+		wp-content/uploads/backupbuddy_temp directory is now transient -- it will be deleted between uses and only exist temporarily for the backup process.
+	FEATURE:
+		Recent backup logs now persist for a bit to help keep a recent copy of logs from recent backup(s) for potential troubleshooting.
+		Logs of recent backups are viewable (if available) from the backup page by hovering under the Status section.
+	ENHANCEMENT:
+		Remote destination option to lock any future access to viewing the destination's remote files added.
+	ENHANCEMENT:
+		Backup process now tracks zip file write speed during the actual backup process to get an idea of server performance, especially for larger sites.
+	ImportBuddy: iframe-based progression through the backup process combined with Javascript templates and AJAX allows for a fluid experience with better error catching and a persistant status log.
+	ImportBuddy: PHP-based import is now the preferred method due to new chunking.
+	FEATURE:
+		ImportBuddy: New and improved user interface.
+	FEATURE:
+		ImportBuddy: ImportBuddy now intelligently detects .htaccess file AddHandler references which are not needed for PHP to function and alerts the user of potential problems and does not migrate the AddHandler directive by default unless detected to be neccessary.
+	FEATURE:
+		ImportBuddy: Database imports now allow for selectively importing selected database tables for granular control over which database tables are/are not restored.
+	FEATURE:
+		ImportBuddy: New option to select whether to restore files and/or the database during the ImportBuddy restore when dealing with full backups.
+	ENHANCEMENT:
+		Performance improvements. Less registering of AJAX events with WordPress.
+	FEATURE:
+		Most recent backup log file is kept
+	FEATURE:
+		Added new setting to send a notification email upon remote destination file transfers finishing.
+	ImportBuddy: Errors encountered during the import, including PHP errors are caught, logged, and displayed in the user interface to the user for improved visibility.
+	ImportBuddy: Better handling of non-WordPress .htaccess file directives resulting in less chance of damaging custom rules.
+	Changed default mysqlbuddy database method to use PHP rather than commandline.
+	Windows-only: Fixed typo in mysqlbuddy calling msqldump.exe instead of mysqldump.exe.
+	ImportBuddy now uses same JS logging system as BackupBuddy with triggered events from JSON passed from the server.
+	Max execution time now definable for chunked database backups under Advanced Settings -> Database. New core function adjustedMaxExecutionTime() for determining.
+	Selecting a destination to add bumps user back up to top where new content has loaded.
+	Stash & S3 destinations now both have option to use included CA bundle for working around server SSL CA Cert bundle problems.
+	Fixed email notification displaying as error status instead of details.
+	Fixed dashboard overview linking to the latest backup even if it had been deleted / moved offsite.
+	Fixed undefined index warnings for integrity information for deleted backups.
+	Added additional logging of BackupBuddy version number for more easily determining version from log snippets.
+	Fixed recent log files (such as from file transfer) purging far too quickly. Now 48 hours delay before cleanup.
+	Approximate zip and database dump creation speed (in MB/sec) is now logged for helping to determine performance.
+	Fixed logging of destination chunking reporting invalid chunking threshold for some edge cases. Only impacts logging.
+	Fixed option to delete local backup after sending to remote destination failing to delete local copy when multipart chunking is used.
+	Directory exclusion calculation for temp dirs now properly include trailing slash for consistency.
+	Integrity check now verifies all SQL table files exist that were expected to be backed up.
+	Integrity check now displays number of SQL files found passing (for v5.0+ backups).
+	Fileoptions now logs a unique lock ID to help pair errors due to lock collissions with the lock generation.
+	Changed setting to breakout large tables in commandline mode to enabled for better support of larger database tables.
+	Changed default database dump method to PHP-based as it supports both table and row-based chunking & resuming.
+	In Full Logging mode the backup state will be logged to the javascript console during backup for internal variable troubleshooting. (data in backup.php's $this->_backup var).
+	Integrity check now checks that breakout table .sql files all exist.
+	ImportBuddy: Fixed problem where sometimes cleanup step would be missing styling or graphics by using JS to load steps.
+	sFTP destination: Fixed backup trying to send into incorrect path. First the path was changed into and then the file to upload included the path, resulting in doubling up of the path.
+	Fixed typo in Dropbox description (multipark->multipart).
+	Bug: Malware scan now using home_url() to calculate URL rather than site_url().
+	Setup wizard now calculates which destinations are supported by server and provides all compatibility destinations as options. Eg Dropbox v2.
+	BackupBuddy temp directory is now transient. Failed backups may result in it lingering longer until periodic housekeeping cleanup function removes it.
+	Fixed incorrect background color when restoring a file from backup.
+	File restore from backup now falls back to using copy/unlink combination when restoring files if rename() fails.
+	Added note to not send complete log when seeking support unless requested and instead to send Status Log made during backups.
+	Added tip to set email error notification setting, including background in input.
+	When full error logging is enabled: Serial logging (eg from a running backup) is now directed to a separate log instead of the main for easier access and isolation.
+	Added ability to view backup log if available (eg due to full logging enabled).
+	Flushing (flush() calls) can be disabled by setting the constant BACKUPBUDDY_NOFLUSH to TRUE in wp-config.php for rare server issue or troubleshooting.
+	Fixed potential bug whereby ImportBuddy would seek out the DAT file in the root of the site before checking the temp subdirectory. This could result in using the wrong DAT file loading and thus an import failure with unexpected issues.
+	Added warning suppression to php_uname() calls in zipbuddy to prevent warnings when generating server signature.
+	Removed S3 key retrieval link as this is depricated due to secret keys no longer being supported.
+	Backup steps view now lists steps taking less than 1 second as < 1 second rather than 0.
+	Timed out backups are now examined for potential problems and their status updated appropriately to prevent 'hanging' timed out backups.
+	Bug fix: Deleting a local backup after sending to a remote destination when chunking was enabled was not happening. Fixed.
+	Fixed Server Tools page quick release links being reversed.
+	Fixed additional temp directory exclusions missing trailing slash during generation.
+	Bug: Malware scanner showed site_url() when it should be testing and showing home_url() results.
+	Setup wizard now only shows destinations compatible with the server BackupBuddy is running on instead of all of them.
+	View & restore of files from within an archive now use copy/unlink rather than rename to handle moving between different filesystems.
+	ImportBuddy: Database backup restores no longer dump their contents into the site root for security and instead use a randomly named subdirectory to hold these temporary files.
+	ImportBuddy: importbuddy.php can now be renamed and still run as expected.
+	New Sync verb: backupbuddy-add-schedule
+	New Sync verb: backupbuddy-delete-schedule
+	New Sync verb: backupbuddy-list-destinationTypes
+	New Sync verb: backupbuddy-test-destination
+	New Sync verb: backupbuddy-delete-destination
+	New Sync verb: backupbuddy-get-destinationSettings
+	New Sync verb: backupbuddy-add-destination
+	Now logging list_parts() response for S3 and Stash destinations for better troubleshooting of multipart send failures.
+	WordPress cron schedules for scheduled backups are now periodically audited to check for duplicate schedules. If any are found they are removed. Inability to unschedule will log an error.
+	Cron's destination_send() function now accepts an additional unique identifier to lock running so that the same transfer does not run multiple times due to cron issues. Upon cron.php destination_send() running, a file is created in the BB log directory named cronSend-UNIQUE_ID_HERE.lock if it does not exists with a string of 1 as the contents. If it already exists then the schedule has run more than once and the attempt will be logged with the attempt count and halted.
+	ENHANCEMENT:
+		Added additional API methods for calling by 3rd party plugins. See classes/api.txt for details. More documentation coming soon.
+	API: Added new method backupbuddy_api::runBackup().
+	API: Added new method backupbuddy_api::getLatestBackupStats().
+	Fixed FTP transfer mode from saying Active was default as Passive has been default since 3.x.
+	Removed echo in mysqlbuddy during PHP-based dumping which could result in the PHP process ending on some servers.
+	Recently made backups and recently sent files can be viewed on those pages by clicking the new link to the right of the page title at the upper left of the page content.
+	Added check for S3 test to see if CFRuntime class already exists which would indicate another plugin loading S3 libraries on BackupBuddy pages causing a conflict.
+	Added additional logging to remote send function to track where failures may occur.
+	ENHANCEMENT:
+		Multisite Network Migration improvements for moving entire networks.
+	ALPHA TESTING - Jul 16:
+		Fixed all reported issues except:
+			PHP Fatal error:  Call to a member function get() on a non-object in [...]/wp-includes/cache.php on line 113
+	Multisite: Improved notification message on network activating and wp-config.php modification to adjust the message based on which is missing.
+	Improved message when log directory does not exist and cannot be created.
+	Zip method strategy now defaults to 'best available'.
+	ALPHA TESTING - JUL 22:
+	Removed duplicate option to delete file after send for schedules.
+	Added additional logging to importbuddy temp directory usage and additional temp directory calculation locations to help solve writability issues.
+	Fixed log not displaying properly during file restores from an archive.
+	ALPHA TESTING - JUL 23:
+	Fixed the following by caching the getLogDirectory function calculation in BB core class: PHP Fatal error:  Call to a member function get() on a non-object in [...]/wp-includes/cache.php on line 113
+	Updated text in various locations.
+	Minor UI tweaks.
+	ALPHA TESTING - JUL 30:
+	Removed some extra console logging used for debugging new backup process. Some remains for now.
+	Fixed date calculation for edge cases of some timezones.
+	Fixed empty zero-indexed item in default settings on install.
+	Total aggregate SQL dump size now logged after each SQL file dumped.
+	Database aggregate file size in UI & status log now displayed during backup now display to 2-decimal precision.
+	Updated 'Break out big table dumps into steps' being noted as defaulting to disabled to enabled.
+	Misc UI tweaks in ImportBuddy.
+	ALPHA TESTING - AUG 11:
+	Added additional catch for logging fatal PHP errors encountered when grabbing latest backup status information.
+	Fixed remaining issue with wp-cache.
+	ImportBuddy: Fixed cleanup settings & final status not showing after restore completed in some cases due to .htaccess preventing loading. Now pre-caching these templates.
+	ImportBuddy: Fixed rtrim warning.
+	BETA - AUG 14:
+	Multisite Subsite Export: Base database tables to dump always forced to prefix instead of using default profile setting.
+	ENHANCEMENT:
+		Upon authentication failure when viewing Stash destination user is now prompted to re-authenticate instead of requiring deletion & re-creation of destination.
+	New "Re-authenticate" link added to Stash file manager to allow manually re-authenticating or changing which Stash account is being used for the destination.
+	ImportBuddy: After a failed database test changing any settings now clears out prior errors to prepare for next test.
+	ImportBuddy: Database settings page advanced option to select SQL files to restore now always shows scrollbar to make it clearer it is scrollable. Applicable especially to Macs.
+	RC1 Testing - Aug 18:
+	Server Tools disabled PHP function list width now limited to prevent pushing page contents too wide.
+	Changed Server Tools logging to suggest not displaying errors to screen. Added more details to logging ini settings descriptions.
+	Merged preliminary work on Deployment system.
+	Additional Multisite logging.
+	Misc fixes.
+5.0.1.0 - 2014-08-20 - Dustin Bolton
+	Fixed syntax error, unexpected T_SL in mysql_test.php caused due to unresolved GIT merge issue pushing despite conflict still existing.
+5.0.1.1 - 2014-08-20 - Dustin Bolton
+	Fixed 'Send' link on Restore / Migrate page going to Migration feature rather than allowing sending backups to remote destinations.
+	Fixed having to select to add a destination twice when creating a new destination from the Restore / Migrate page.
+	Sending to a remote destination via the Backup page displays sending confirmation in-page instead of alert box.
+	ENHANCEMENT:
+		Added new advanced option "Reschedule missing crons in manual backups" which has BackupBuddy attempt to reschedule missing cron jobs during manually made backups to prevent the backup from stalling. Via backup_status.php.
+5.0.1.2 - 2014-08-20 - Dustin Bolton
+	ImportBuddy: Fixed missing ability to restore from Stash or upload an archive from Step 1 if there was not already a backup in the directory.
+5.0.1.3 - 2014-08-20 - Dustin Bolton
+	Improved Javascript performance on backup page resulting in hanging page on Multisite networks with very large numbers of tables.
+5.0.1.4 - 2014-08-21 - Dustin Bolton
+	Fixed standalone preloader for wp_upload_dir() to return basedir key value pair instead of just the single string value.
+	ImportBuddy: Error display box no longer scrolls. Expands to unlimited height so errors are not hidden behind overflow.
+	ImportBuddy: 9010 errors are now capped at 10 displayed on screen.  After that a single error is thrown indicating that all 9010 errors are logged to ABSPATH . 'importbuddy/mysql_9010_log-' . pb_backupbuddy::$options['log_serial'] . '.txt'.
+	mysqlbuddy: Importing of SQL resulting in 9010 errors now writes to log file for troubleshooting, including logged in header previous and new prefix values.
+5.0.1.5 - 2014-08-21 - Dustin Bolton
+	Fix: If post-remote-send deletion is enabled but transfer fails the local file will no longer be deleted.
+	ImportBuddy: Fixed 9010 error when restoring to a new WordPress prefix using PHP-based method caused by invisible character preceeding query line hampering regex matching.
+5.0.1.6 - 2014-08-21 - Dustin Bolton
+	ImportBuddy now warns if trying to use an old version of importbuddy.php to restore a newer backup archive. Eg attempting to restore a 5.0 backup with a 4.0 importbuddy.php.
+	ImportBuddy: Fixed unchecking both Files & Database restore from unzipping some files anyway to temp location.
+	ImportBuddy: Fixed wp-content/uploads/backupbuddy_temp/restore_XXXXXX/ directory being crated. Moved to proper temp directory beneath importbuddy folder.
+5.0.1.7 - 2014-08-22 - Dustin Bolton
+	Fixed SQL size aggregate in log increasing by the amount of each report of the current SQL file size.
+	Fixed alert box displaying a URL popping up when selecting to create a new destination.
+5.0.1.8 - 2014-08-22 - Dustin Bolton
+	Fixed out of date ImportBuddy warning.
+5.0.2.0 - 2014-08-22 - Dustin Bolton
+	Restore now attempts to copy instead of move file during restore to prevent cross-link issues.
+5.0.2.1 - 2014-08-24 - Dustin Bolton
+	ImportBuddy: On json decode error, if function json_last_error() is available then error code is also logged.
+	ImportBuddy: Added additional encoding to state data passing from browser to PHP to help protect UTF8 data in transfer. Prevents json_decode() failure based on malformed UTF8 despite jslinter saying it's valid. PHP extra sensitive?
+5.0.2.2 - 2014-08-25 - Dustin Bolton
+	ImportBuddy: Extended json_decode issue fix to all pages.
+	ImportBuddy: Updated bruteforce lack of primary key to indicate it may only be a non-fatal warning.
+5.0.2.3 - 2014-08-25 - Dustin Bolton
+	Malware scan page: Updated links for iThemes Security Pro & Sucuri.
+	Stash destination: Subscriber key now displayed to the right just under file listing. Used by support when troubleshooting potential issues.
+	Significant improvement of javascript performance when logging to status log during backup. Appending to the status log now queued to once per second to prevent hammering DOM which freezes browsers on sites with massive databases.
+	Fixed .htaccess issue where restored site's .htaccess could result in broken URLs / CSS.
+5.0.2.4 - 2014-08-25 - Dustin Bolton
+	Fixed wp-cli error about profile being non-numeric.
+5.0.2.5 - 2014-08-25 - Dustin Bolton
+	Multisite Import: Fixed inability to import BackupBuddy 5.x sites into Network that consisted of multiple SQL files.
+5.0.2.6 - 2014-08-26 - Dustin Bolton
+	Consolidated database dump logging some to reduce number of repeated lines per dump.
+	Now displaying current table being dumped in graphical backup UI.
+	Added US GovCloud support for amazon S3.
+	Fixed dashboard widget backup now URL on Multisite.
+	ImportBuddy now only creates an index.htm on any access if an index.php does not exist.
+5.0.2.7 - 2014-08-26 - Dustin Bolton
+	Added additional status logging of current SQL file name.
+	File restore copy() replaced with pb_backupbuddy::$filesystem->recursive_copy() call to handle directories.
+5.0.2.8 - 2014-08-29 - Dustin Bolton
+	ImportBuddy no longer requires password field for database settings to pass test as it is technically possible for it to be blank in mysql.
+	ImportBuddy: Option to select files and/or database no disabled/enabled based on currently selected backup type. Eg files is unchecked for database only backup archives.
+	ImportBuddy: Fixed selecting only to restore database on a Full backup type not working unless files were already unzipped.
+	ImportBuddy: Re-added advanced option on Step 1 to completely skip file unzipping & opening the zip file. User must manually unzip archive prior to using this option.
+	ImportBuddy: Fixed restore state not urlencoding data when database chunking. Could cause problems with special characters such as plus sign (+) in settings getting lost between chunks.
+	ImportBuddy: cPanel database functionality now using API2 json. - Jeremy
+	ImportBuddy: Fixed cPanel username & database name not populating mysql settings fields.
+	Remote Destination settings saving now displays saving indicator & closes configuration on save success.
+5.0.3.0 - 2014-09-03 - Dustin Bolton
+	Full release of recent quick release versions.
+	Logging improvements.
+	Fixed directory exclusion count in backup interface always saying zero.
+	Plugin options are verified to be loaded at initiation of activation.php.
+5.0.3.1 - 2014-09-03 - Dustin Bolton
+	Changed text wording for toggling display of Status Log during ImportBuddy or Rollback to "Display Status Log".
+5.0.3.2 - 2014-09-03 - Dustin Bolton
+	ImportBuddy no longer requires password field for database settings to pass test as it is technically possible for it to be blank in mysql. Fix did not apply in 5.0.2.8.
+5.0.3.3 - 2014-09-10 - Dustin Bolton
+	Fixed undefined index in ImportBuddy when restoring a v1.x backup file on Step 1.
+	ImportBuddy now checks for db.sql file for restoring for BackupBuddy v1.x backward compatibility.
+	Error #9029 (warning only for bruteforce) now returns true as to now trigger a secondary error about bruteforce failure.
+	Fixed typo in mysql compatibility setting.
+	Added additional logging for failed cron chunk scheduling for Dropbox2.
+	ImportBuddy: Fixed customer Home URL option in ImportBuddy using siteurl for homeurl.
+	ImportBuddy: Updated existing wp tables error to note the advanced option to ignore SQL errors & existing tables as an option to proceed. Useful when only restoring a subset of wp tables from the advanced options.
+	
+	

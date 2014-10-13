@@ -29,7 +29,8 @@ class pb_backupbuddy_mysqlbuddy {
 	
 	
 	const COMMAND_LINE_LENGTH_CHECK_THRESHOLD = 250;													// If command line is longer than this then we will try to determine max command line length.
-	
+	const TIME_WIGGLE_ROOM = 1;																			// Number of seconds to fudge up the time elapsed to give a little wiggle room so we don't accidently hit the edge and time out.
+	const HEARTBEAT_COUNT_LIMIT = 2000;																	// Number of rows/queries to heartbeat after, logging number of rows handled.
 	
 	/********** Properties **********/
 	
@@ -53,7 +54,9 @@ class pb_backupbuddy_mysqlbuddy {
 	private $_commandbuddy;
 	
 	private $_maxExecutionTime = '';
-	private $_max_rows_per_select = 2000;
+	private $_max_rows_per_select = 1000;
+	private $_9010s_encountered = 0;
+	private $_max_9010s_allowed = 9; // After this point an error will be shown indicating subsequent errors will be hidden. All 9010 log to: ABSPATH . 'importbuddy/mysql_9010_log-' . pb_backupbuddy::$options['log_serial'] . '.txt'
 	
 	/********** Methods **********/
 	
@@ -103,7 +106,7 @@ class pb_backupbuddy_mysqlbuddy {
 		}
 		unset( $host_split );
 		
-		pb_backupbuddy::status( 'details', 'Loading mysqldump library.' );
+		pb_backupbuddy::status( 'details', 'Loading mysqlbuddy library.' );
 		pb_backupbuddy::status( 'details', 'Mysql server default directories: `' . implode( ',', $this->_default_mysql_directories ) . '`' );
 		
 		$this->_database_name = $database_name;
@@ -120,12 +123,16 @@ class pb_backupbuddy_mysqlbuddy {
 		// Set mechanism for dumping / restoring.
 		if ( count( $force_methods ) > 0 ) { // Mechanism forced. Overriding automatic check.
 			pb_backupbuddy::status( 'message', 'mysqlbuddy: Settings overriding automatic detection of available database dump methods. Using forced override methods: `' . implode( ',', $force_methods ) . '`.' );
+			if ( in_array( 'commandline', $force_methods ) ) {
+				pb_backupbuddy::status( 'details', 'Forced methods include commandline so calculating mysql directory.' );
+				$this->_mysql_directories = $this->_calculate_mysql_dir(); // Try to determine mysql location / possible locations.
+				$this->_methods = $this->available_dump_methods(); // Run after _calculate_mysql_dir().
+			}
 			$this->_methods = $force_methods;
 		} else { // No method defined; auto-detect the best.
 			pb_backupbuddy::status( 'message', 'mysqlbuddy: Method not forced. About to detect directory and available methods.' );
-			// Try to determine mysql location / possible locations.
-			$this->_mysql_directories = $this->_calculate_mysql_dir(); // Don't need to check this in forced mode.
 			
+			$this->_mysql_directories = $this->_calculate_mysql_dir(); // Try to determine mysql location / possible locations.
 			$this->_methods = $this->available_dump_methods(); // Run after _calculate_mysql_dir().
 		}
 		pb_backupbuddy::status( 'message', 'mysqlbuddy: Detected database dump methods: `' . implode( ',', $this->_methods ) . '`.' );
@@ -186,14 +193,13 @@ class pb_backupbuddy_mysqlbuddy {
 				if ( stristr( implode( ' ', $exec_output ), 'Ver' ) !== false ) { // String Ver appeared in response (expected response to mysqldump --version
 					pb_backupbuddy::status( 'details', 'mysqldump test: Command appears to be accessible and returns expected response.' );
 					$this->_mysql_directory = $mysql_directory; // Set to use this directory for the real dump.
-					return array( 'commandline', 'php' ); // mysqldump best, php next.
+					return array( 'php', 'commandline' ); // mysqldump best, php next.
 				}
 			}
 			
 			
 		} else { // No exec() so must fall back to PHP method only.
 			pb_backupbuddy::status( 'details', 'mysqldump test: exec() unavailable so skipping command line mysqldump check.' );
-			pb_backupbuddy::status( 'message', 'mysqldump test: Falling back to database compatibility mode (PHPdump emulation). This is slower.' );
 			return array( 'php' );
 		}
 		
@@ -244,12 +250,10 @@ class pb_backupbuddy_mysqlbuddy {
 	 *	
 	 *	@param		string		$output_directory		Directory to output to. May also be used as a temporary file location. Trailing slash auto-added if missing.
 	 *	@param		array		$tables					Array of tables to dump.
-	 *	REMOVED: @param		string		$base_dump_mode			Determines which database tables to dump by default. $additional_[includes/excludes] modified. Modes: all, none, or prefix.
-	 *	REMOVED: @param		array		$additional_includes	Array of additional table(s) to INCLUDE in dump. Added in addition to those found by the $base_dump_mode
-	 *	REMOVED: @param		array		$additional_excludes	Array of additional table(s) to EXCLUDE from dump. Removed from those found by the $base_dump_mode + $additional_includes.
+	 *	@param		int			$rows_start				Starting row, if any. Only works with PHP mode. Used with chunking.
 	 *	@return
 	 */
-	public function dump( $output_directory, $tables = array() ) { //, $base_dump_mode, $additional_includes = array(), $additional_excludes = array() ) {
+	public function dump( $output_directory, $tables = array(), $rows_start = 0 ) { //, $base_dump_mode, $additional_includes = array(), $additional_excludes = array() ) {
 		
 		$output_directory = rtrim( $output_directory, '/' ) . '/'; // Make sure we have trailing slash.
 		pb_backupbuddy::status( 'milestone', 'start_database' );
@@ -269,7 +273,7 @@ class pb_backupbuddy_mysqlbuddy {
 		foreach( $this->_methods as $method ) {
 			if ( method_exists( $this, "_dump_{$method}" ) ) {
 				pb_backupbuddy::status( 'details', 'mysqlbuddy: Attempting dump method `' . $method . '`.' );
-				$result = call_user_func( array( $this, "_dump_{$method}" ), $output_directory, $tables );
+				$result = call_user_func( array( $this, "_dump_{$method}" ), $output_directory, $tables, $rows_start );
 				
 				if ( $result === true ) { // Dump completed succesfully with this method.
 					pb_backupbuddy::status( 'details', 'mysqlbuddy: Dump method `' . $method . '` completed successfully.' );
@@ -278,6 +282,9 @@ class pb_backupbuddy_mysqlbuddy {
 				} elseif ( $result === false ) { // Dump failed this method. Will try compatibility fallback to next mode if able.
 					// Do nothing. Will try next mode next loop.
 					pb_backupbuddy::status( 'details', 'mysqlbuddy: Dump method `' . $method . '` failed. Trying another compatibility mode next if able.' );
+				} elseif ( is_array( $result ) ) { // Chunking.
+					pb_backupbuddy::status( 'details', 'mysqlbuddy: Dump method `' . $method . '` is using chunking.' );
+					return $result;
 				} else { // Something else returned; need to resume? TODO: this is for future use for resuming dump.
 					pb_backupbuddy::status( 'details', 'mysqlbuddy: Unexepected response: `' . implode( ',', $result ) . '`' );
 				}
@@ -304,14 +311,17 @@ class pb_backupbuddy_mysqlbuddy {
 	 *	function description
 	 *	
 	 *	@param		string		$output_directory		Directory to output to. May also be used as a temporary file location. Trailing slash required. dump() auto-adds trailing slash before passing.
-	 *	@param		array		$tables					Array of tables to dump.
-	 *	REMOVED: @param		string		$base_dump_mode			Base dump mode. Used to tell whether or not to dump entire database or piecemeal tables. Try to keep command line short.
-	 *	REMOVED: @param		array		$additional_excludes	Additional excludes. Used to tell whether or not to dump entire database or piecemeal tables. Try to keep command line short.
+	 *	@param		array		$tables					Array of tables to dump. If only one table in array then will use TABLENAME.sql instead of db_1.sql.
+	 *	@param		int			$rows_start				N/A. Not used by this method.
 	 *	@return		
 	 */
-	private function _dump_commandline( $output_directory, $tables ) { //, $base_dump_mode, $additional_excludes ) {
+	private function _dump_commandline( $output_directory, $tables, $rows_start = 0 ) { //, $base_dump_mode, $additional_excludes ) {
 		
-		$output_file = $output_directory . 'db_1.sql';
+		if ( count( $tables ) == 1 ) { // If only one table then name .sql file after it.
+			$output_file = $output_directory . $tables[0] . '.sql';
+		} else { // Multiple tables so use generaic db_1.sql file to dump into.
+			$output_file = $output_directory . 'db_1.sql';
+		}
 		pb_backupbuddy::status( 'details', 'mysqlbuddy: Preparing to run command line mysqldump via exec().' );
 		$exclude_command = '';
 		
@@ -372,7 +382,10 @@ class pb_backupbuddy_mysqlbuddy {
 		}
 		if ( $command_length > self::COMMAND_LINE_LENGTH_CHECK_THRESHOLD ) { // Arbitrary length. Seems standard max lengths are > 200000 on Linux. ~8600 on Windows?
 			pb_backupbuddy::status( 'details', 'mysqlbuddy: Command line length of `' . $command_length . '` (bytes) is large enough ( >' . self::COMMAND_LINE_LENGTH_CHECK_THRESHOLD . ' ) to verify compatibility. Checking maximum allowed command line length for this sytem.' );
+			
+			// Check max command length supported by server.
 			list( $exec_output, $exec_exit_code ) = $this->_commandbuddy->execute( 'echo $(( $(getconf ARG_MAX) - $(env | wc -c) ))' ); // Value will be a number. This is the maximum byte size of the command line.
+			
 			pb_backupbuddy::status( 'details', 'mysqlbuddy: Command output: `' . implode( ',', $exec_output ) . '`; Exit code: `' . $exec_exit_code . '`; Exit code description: `' . pb_backupbuddy::$filesystem->exit_code_lookup( $exec_exit_code ) . '`' );
 			if ( is_array( $exec_output ) && is_numeric( $exec_output[0] ) ) {
 				pb_backupbuddy::status( 'details', 'mysqlbuddy: Detected maximum command line length for this system: `' . $exec_output[0] . '`.' );
@@ -381,7 +394,7 @@ class pb_backupbuddy_mysqlbuddy {
 						pb_backupbuddy::status( 'details', 'mysqlbuddy: This system\'s maximum command line length of `' . $exec_output[0] . '` is shorter than command length of `' . $command_length . '`. However, the option to ignore command line length check is enabled based on settings so continuing anyways.' );
 					} else {
 						if ( $exec_output[0] < 0 ) {
-							pb_backupbuddy::status( 'warning', 'mysqlbuddy: This system reported a negative number for the maximum command line length. This means that BackupBuddy cannot safely detect this system\'s limit.  This check can be overriden by enabling the "Skip command line length check" advanced option on the Settings page in BackupBuddy as a workaround. get_conf ARG_MAX likely failed.' );
+							pb_backupbuddy::status( 'warning', 'mysqlbuddy: This system reported a negative number for the maximum command line length. This means that BackupBuddy cannot safely detect this system\'s limit.  This check can be overridden by enabling the "Skip command line length check" advanced option on the Settings page in BackupBuddy as a workaround. get_conf ARG_MAX likely failed.' );
 						}
 						pb_backupbuddy::status( 'details', 'mysqlbuddy: This system\'s maximum command line length of `' . $exec_output[0] . '` is shorter than command length of `' . $command_length . '`. Falling back into compatibility mode to insure database dump integrity.' );
 						return false;
@@ -466,20 +479,16 @@ class pb_backupbuddy_mysqlbuddy {
 	 *	@param		array		$tables					Array of tables to dump.
 	 *	REMOVED: @param		string		$base_dump_mode			Base dump mode. NOT USED. Consistent with other dump mode.
 	 *	REMOVED: @param		array		$additional_excludes	Additional excludes. NOT USED. Consistent with other dump mode.
-	 *	@return		
+	 *	@return		mixed										true on success, false on fail, array on resuming
 	 */
-	private function _dump_php( $output_directory, $tables ) { //, $base_dump_mode, $additional_excludes ) {
+	private function _dump_php( $output_directory, $tables, $resume_starting_row = 0 ) { //, $base_dump_mode, $additional_excludes ) {
 		
+		$this->time_start = microtime( true );
 		$max_rows_per_select = $this->_max_rows_per_select;
 		
-		$output_file = $output_directory . 'db_1.sql';
-		pb_backupbuddy::status( 'details', 'mysqlbuddy: Preparing to run PHP mysqldump compatibility mode.' );
-		
-		if ( false === ( $file_handle = fopen( $output_file, 'a' ) ) ) {
-			pb_backupbuddy::status( 'error', 'Error #9018: Database file is not creatable/writable. Check your permissions for file `' . $output_file . '` in directory `' . $output_directory . '`.' );
-			return false;
+		if ( $resume_starting_row > 0 ) {
+			pb_backupbuddy::status( 'details', 'Resuming chunked dump at row `' . $resume_starting_row . '`.' );
 		}
-		
 		
 		global $wpdb;
 		if ( !is_object( $wpdb ) ) {
@@ -512,31 +521,53 @@ class pb_backupbuddy_mysqlbuddy {
 		
 		// Iterate through all the tables to backup.
 		// TODO: Future ability to break up DB exporting to multiple page loads if needed.
+		$remainingTables = $tables;
 		foreach( $tables as $table_key => $table ) {
-			pb_backupbuddy::status( 'details', 'Starting to dump database table `' . $table . '`. Max rows per select: ' . $max_rows_per_select . '.' );
-			$create_table = $wpdb->get_results( "SHOW CREATE TABLE `{$table}`", ARRAY_N );
+			$insert_sql = '';
 			
-			if ( $create_table === false ) {
-				pb_backupbuddy::status( 'error', 'Unable to access and dump database table `' . $table . '`. Table may not exist. Skipping backup of this table.' );
-				//backupbuddy_core::mail_error( 'Error #4537384: Unable to access and dump database table `' . $table . '`. Table may not exist. Skipping backup of this table.' );
-				continue; // Skip this iteration as accessing this table failed.
+			if ( $resume_starting_row > 0 ) {
+				pb_backupbuddy::status('details', 'Chunked resume on dumping `' . $table . '`. Resuming where left off.' );
+				$rows_start = $resume_starting_row;
+				$resume_starting_row = 0; // Don't want to skip anything on next table.
+			} else {
+				$rows_start = 0;
 			}
+			pb_backupbuddy::status( 'details', 'Dumping database table `' . $table . '`. Max rows per select: ' . $max_rows_per_select . '. Starting at row `' . $resume_starting_row . '`.' );
+			pb_backupbuddy::status( 'startTableDump', $table );
 			
-			// Table creation text
-			if ( ! isset( $create_table[0] ) ) {
-				pb_backupbuddy::status( 'error', 'Error #857835: Unable to get table creation SQL for table `' . $table . '`. Result: `' . print_r( $create_table ) . '`.' );
+			$output_file = $output_directory . $table . '.sql';
+			pb_backupbuddy::status( 'details', 'SQL dump file `' . $output_file . '`.' );
+			pb_backupbuddy::status( 'details', 'mysqlbuddy: PHP-based database dump with max execution time for this run: ' . $this->_maxExecutionTime . ' seconds.' );
+			if ( false === ( $file_handle = fopen( $output_file, 'a' ) ) ) {
+				pb_backupbuddy::status( 'error', 'Error #9018: Database file is not creatable/writable. Check your permissions for file `' . $output_file . '` in directory `' . $output_directory . '`.' );
 				return false;
 			}
-			$create_table_array = $create_table[0];
-			unset( $create_table );
-			$insert_sql .= str_replace( "\n", '', $create_table_array[1] ) . ";\n"; // Remove internal linebreaks; only put one at end.
-			unset( $create_table_array );
 			
-			// Disable keys for this table.
-			$insert_sql .= "/*!40000 ALTER TABLE `{$table}` DISABLE KEYS */;\n";
-			
+			if ( 0 == $rows_start ) {
+				
+				$create_table = $wpdb->get_results( "SHOW CREATE TABLE `{$table}`", ARRAY_N );
+				if ( $create_table === false ) {
+					pb_backupbuddy::status( 'error', 'Unable to access and dump database table `' . $table . '`. Table may not exist. Skipping backup of this table.' );
+					//backupbuddy_core::mail_error( 'Error #4537384: Unable to access and dump database table `' . $table . '`. Table may not exist. Skipping backup of this table.' );
+					continue; // Skip this iteration as accessing this table failed.
+				}
+				// Table creation text
+				if ( ! isset( $create_table[0] ) ) {
+					pb_backupbuddy::status( 'error', 'Error #857835: Unable to get table creation SQL for table `' . $table . '`. Result: `' . print_r( $create_table ) . '`.' );
+					return false;
+				}
+				$create_table_array = $create_table[0];
+				unset( $create_table );
+				$insert_sql .= str_replace( "\n", '', $create_table_array[1] ) . ";\n"; // Remove internal linebreaks; only put one at end.
+				unset( $create_table_array );
+				
+				// Disable keys for this table.
+				$insert_sql .= "/*!40000 ALTER TABLE `{$table}` DISABLE KEYS */;\n";
+				
+			}
+
+			$queryCount = 0;
 			$rows_remain = true;
-			$rows_start = 0;
 			while ( true === $rows_remain ) {
 				// Row creation text for all rows within this table.
 				$query = "SELECT * FROM `$table` LIMIT " . $rows_start . ',' . $max_rows_per_select;
@@ -548,6 +579,7 @@ class pb_backupbuddy_mysqlbuddy {
 					return false;
 				}
 				$tableCount = count( $table_query );
+				pb_backupbuddy::status( 'details', 'Got `' . $tableCount . '` rows from `' . $table . '`.' );
 				if ( ( 0 == $tableCount ) || ( $tableCount < $max_rows_per_select ) ) {
 					$rows_remain = false;
 				}
@@ -571,41 +603,65 @@ class pb_backupbuddy_mysqlbuddy {
 					$writeReturn = fwrite( $file_handle, $insert_sql );
 					if ( ( false === $writeReturn ) || ( 0 == $writeReturn ) ) {
 						pb_backupbuddy::status( 'error', 'Error #843948: Unable to write to SQL file. Return error/bytes written: `' . $writeReturn . '`.' );
+						@fclose( $file_handle );
 						return false;
 					}
 					$insert_sql = '';
 					
-					// Help keep HTTP alive.
 					$_count++;
-					if ($_count >= 500) {
-						echo ' ';
-						pb_backupbuddy::status( 'details', 'About to flush...' );
-						pb_backupbuddy::flush();
-						$_count = 0;
+					
+					// Show a heartbeat to keep user up to date [and entertained ;)].
+					if ( ( 0 === ( $_count % self::HEARTBEAT_COUNT_LIMIT ) ) || ( 0 === ( $_count % ceil( $max_rows_per_select / 2 ) ) ) ) { // Display every X queries based on heartbeat OR at least display every half max rows per select.
+						pb_backupbuddy::status( 'details', 'Working... Dumped ' . $_count . ' rows so far.' );
 					}
-				} // end while $rows_remain is true.
+				} // end foreach table row.
+				
+				
+				
+				// If we are within 1 second of reaching maximum PHP runtime then stop here so that it can be picked up in another PHP process...
+				if ( ( ( microtime( true ) - $this->time_start ) + self::TIME_WIGGLE_ROOM ) >= $this->_maxExecutionTime ) {
+					pb_backupbuddy::status( 'details', 'Approaching limit of available PHP chunking time of `' . $this->_maxExecutionTime . '` sec. Ran for ' . round( microtime( true ) - $this->time_start, 3 ) . ' sec having dumped `' . $_count . '` rows. Proceeding to use chunking on remaining tables: ' . implode( ',', $remainingTables ) );
+					@fclose( $file_handle );
+					return array( $remainingTables, $rows_start );
+				} // End if.
+				
+				// Made it here so not chunking this round.
+				//array_shift( $remainingTables ); // Yank off this current table from the list of tables left to dump.
+				unset( $remainingTables[ $table_key ] );
 				
 				// Verify database is still connected and working properly. Sometimes mysql runs out of memory and dies in the above foreach.
 				// No point in reconnecting as we can NOT trust that our dump was succesful anymore (it most likely was not).
 				if ( isset( $dbhelper ) ) {
-					if ( $dbhelper->kick() ) {
-						pb_backupbuddy::status( 'details', 'Database seems to still be connected.' );
-					} else { // Database not connected.
+					if ( ! $dbhelper->kick() ) {
 						pb_backupbuddy::status( 'error', __( 'ERROR #9026: The mySQL server went away unexpectedly during database dump of table `' . $table . '`. This is almost always caused by mySQL running out of memory. The backup integrity can no longer be guaranteed so the backup has been halted.' ) . ' ' . __( 'Last table dumped before database server went away: ' ) . '`' . $table . '`.' );
+						@fclose( $file_handle );
 						return false;
 					}
 				} else {
 					pb_backupbuddy::status( 'details', 'Database kicker unavailable so connection status unverified.' );
 				}
 				
-			} // End foreach $tables.
+			} // End while rows remain.
 			
 			// Re-enable keys for this table.
 			$insert_sql .= "/*!40000 ALTER TABLE `{$table}` ENABLE KEYS */;\n";
+			$writeReturn = fwrite( $file_handle, $insert_sql );
+			if ( ( false === $writeReturn ) || ( 0 == $writeReturn ) ) {
+				pb_backupbuddy::status( 'error', 'Error #843948: Unable to write to SQL file. Return error/bytes written: `' . $writeReturn . '`.' );
+				@fclose( $file_handle );
+				return false;
+			}
+			$insert_sql = '';
 			
-			// Help keep HTTP alive.
-			echo ' ';
+			@fclose( $file_handle );
+			
 			pb_backupbuddy::status( 'details', 'Finished dumping database table `' . $table . '`.' );
+			pb_backupbuddy::status( 'finishTableDump', $table );
+			if ( isset( $output_file ) ) {
+				$stats = stat( $output_file );
+				pb_backupbuddy::status( 'details', 'Database SQL dump file (' . basename( $output_file ) .') size: ' . pb_backupbuddy::$format->file_size( $stats['size'] ) );
+				pb_backupbuddy::status( 'sqlSize', $stats['size'] );
+			}
 			pb_backupbuddy::status( 'details', 'About to flush...' );
 			pb_backupbuddy::flush();
 			
@@ -616,10 +672,7 @@ class pb_backupbuddy_mysqlbuddy {
 		unset( $file_handle );
 		
 		
-		pb_backupbuddy::status( 'details', __('Finished PHP based SQL dump method.', 'it-l10n-backupbuddy' ) );
-		$stats = stat( $output_file );
-		pb_backupbuddy::status( 'details', __('SQL dump file size', 'it-l10n-backupbuddy' ) . ': ' . pb_backupbuddy::$format->file_size( $stats['size'] ) );
-		
+		pb_backupbuddy::status( 'details', __('Finished PHP based SQL dump method. Ran for ' . round( microtime( true ) - $this->time_start, 3 ) . ' sec having dumped `' . $_count . '` rows.', 'it-l10n-backupbuddy' ) );
 		return true;
 		
 	} // End _phpdump().
@@ -660,7 +713,7 @@ class pb_backupbuddy_mysqlbuddy {
 		}
 		
 		if ( $query_start > 0 ) {
-			pb_backupbuddy::status( 'message', 'Continuing to restore database dump starting at query ' . $query_start . '.' );
+			pb_backupbuddy::status( 'message', 'Continuing to restore database dump starting at file location `' . $query_start . '`.' );
 		} else {
 			pb_backupbuddy::status( 'message', 'Restoring database dump. This may take a moment...' );
 		}
@@ -668,16 +721,18 @@ class pb_backupbuddy_mysqlbuddy {
 		global $wpdb;
 		
 		// Check whether or not tables already exist that might collide.
+		/*
 		if ( $ignore_existing === false ) {
 			if ( $query_start == 0 ) { // Check number of tables already existing with this prefix. Skips this check on substeps of DB import.
 				$rows = $wpdb->get_results( "SELECT table_name FROM information_schema.tables WHERE table_name LIKE '" . backupbuddy_core::dbEscape( str_replace( '_', '\_', $this->_database_prefix ) ) . "%' AND table_schema = DATABASE()", ARRAY_A );
 				if ( count( $rows ) > 0 ) {
-					pb_backupbuddy::status( 'error', 'Error #9014: Database import halted to prevent overwriting existing WordPress data. The database already contains a WordPress installation with this prefix `' . $this->_database_prefix . '` (' . count( $rows ) . ' tables). Restore has been stopped to prevent overwriting existing data.' );
+					pb_backupbuddy::status( 'error', 'Error #9014: Database import halted to prevent overwriting existing WordPress data.', 'The database already contains a WordPress installation with this prefix (' . count( $rows ) . ' tables). Restore has been stopped to prevent overwriting existing data. *** Please go back and enter a new database name and/or prefix OR select the option to wipe the database prior to import from the advanced settings on the first import step. ***' );
 					return false;
 				}
 				unset( $rows );
 			}
 		}
+		*/
 		
 		pb_backupbuddy::status( 'message', 'Starting database import procedure.' );
 		pb_backupbuddy::status( 'details', 'mysqlbuddy: Maximum execution time for this run: ' . $this->_maxExecutionTime . ' seconds.' );
@@ -701,7 +756,7 @@ class pb_backupbuddy_mysqlbuddy {
 					// Do nothing. Will try next mode next loop.
 					pb_backupbuddy::status( 'details', 'mysqlbuddy: Import method `' . $method . '` failed. Trying another compatibility mode next if able.' );
 				} else { // Something else returned; used for resuming (integer) or a message (string).
-					pb_backupbuddy::status( 'details', 'mysqlbuddy: Non-boolean response (usually means resume is needed): `' . $result . '`' );
+					pb_backupbuddy::status( 'details', 'mysqlbuddy: Non-boolean response (usually means resume is needed): `' . implode( ',', $result ) . '`' );
 					return $result; // Dont fallback if this happens. Usually means resume is needed to finish.
 				}
 			}
@@ -795,82 +850,82 @@ class pb_backupbuddy_mysqlbuddy {
 	 *	@since 2.x.
 	 *	
 	 *	@param		SEE import() PARAMETERS!!
-	 *	@return		mixed			True on success (and completion), integer on incomplete (resume needed via $query_start), false on failure.
+	 *	@return		mixed			True on success (and completion), incomplete/chunking required= array( file pointer[for resuming], queries so far[informative only] ), false on failure.
 	 */
-	public function _import_php( $sql_file, $old_prefix, $query_start = 0, $ignore_existing = false ) {
-		
-		$this->time_start = time();
+	public function _import_php( $sql_file, $old_prefix, $resumePoint = '', $ignore_existing = false ) {
+
+		$this->time_start = microtime( true );
 		
 		pb_backupbuddy::status( 'message', 'Starting import of SQL data... This may take a moment...' );
 		pb_backupbuddy::status ('details', 'Loading SQL from file `' . $sql_file . '`.' );
-		$file_stream = @fopen( $sql_file, 'r' );
 		
-		if ( false === $file_stream ) {
+		
+		// Open SQL file for reading.
+		if ( FALSE === ( $fs = @fopen( $sql_file, 'r' ) ) ) {
 			pb_backupbuddy::status( 'error', 'Error #9009: Unable to find any database backup data in the selected backup or could not open file (possibly due to permissions). Tried opening file `' . $sql_file . '`. Error #9009.' );
 			return false;
 		}
 		
-		// Iterate through each full row action and import it one at a time.
+		// If chunked resuming then seek to the correct place in the file.
+		if ( ( '' != $resumePoint ) && ( $resumePoint > 0 ) ) { 
+			if ( 0 !== fseek( $fs, $resumePoint ) ) { // Returns 0 on success.
+				pb_backupbuddy::status( 'error', 'Error #9483453: Failed to seek SQL file to resume point `' . $resumePoint . '` via fseek().' );
+				return false;
+			}
+		}
+		
+		// Loop through file line-by-line, executing the SQL as we go. Prefix will be changed line by line as needed.
+		$queryCount = 0;
+		$failedQueries = 0;
+		$prevQueryData = '';
+		while ( FALSE !== ( $query = fgets( $fs ) ) ) { // Grab line by line as long as fgets doesn't return FALSE.
 			
-		$query_count = 0;
-		$file_data = '';
-		
-		while ( ! feof( $file_stream ) ) {
-		
-			while ( false === strpos( $file_data, ";\n" ) ) {
-				$file_data .= fread( $file_stream, 4096 );
+			// Clean up SQL and ignore any comment lines.
+			//$query = trim( $query );
+			if ( empty( $query ) || ( $this->string_begins_with( $query, '/*!40103' ) ) ) { // If blank line or starts with /*!40103 (mysqldump file has this junk in it).
+				continue;
 			}
 			
-			$queries = explode( ";\n", $file_data );
-			
-			if ( preg_match( "/;\n$/", $file_data ) ) {
-				$file_data = '';
-			} else {
-				$file_data = array_pop( $queries );
+			if ( FALSE === strpos( $query, ';' ) ) { // Don't have the full query yet. Need to grab more lines.
+				$prevQueryData .= $query;
+				continue; // Go grab more.
 			}
 			
-			// Loops through each full query.
-			foreach ( (array) $queries as $query ) {
-				if ( $query_count < ( $query_start - 1 ) ) { // Handle skipping any queries up to the point we are at.
-					$query_count++;
-					continue; // Continue to next foreach iteration.
-				} else {
-					$query_count++;
-				}
-				
-				$query = trim( $query );
-				
-				if ( empty( $query ) || ( $this->string_begins_with( $query, '/*!40103' ) ) ) { // If blank line or starts with /*!40103 (mysqldump file has this junk in it).
-					continue;
-				}
-				
-				$result = $this->_import_sql_dump_line( $query, $old_prefix, $ignore_existing );
-				
-				if ( false === $result ) { // Skipped query
-					continue;
-				}
-				
-				if ( 0 === ( $query_count % 2000 ) ) { // Display Working every 1500 queries imported.
-					pb_backupbuddy::status( 'message', 'Working... Imported ' . $query_count . ' queries so far.' );
-				}
-				
-				// If we are within 1 second of reaching maximum PHP runtime then stop here so that it can be picked up in another PHP process...
-				if ( ( ( microtime( true ) - $this->time_start ) + 1 ) >= $this->_maxExecutionTime ) {
-					
-					pb_backupbuddy::status( 'message', 'Exhausted available PHP time to import for this page load. Last query: ' . $query_count . '.' );
-					fclose( $file_stream );
-					return ( $query_count + 1 );
-					
-				} // End if.
-				
-			} // End foreach().
+			// Execute the SQL line.
+			if ( FALSE === ( $result = $this->_import_sql_dump_line( trim( $prevQueryData . $query ), $old_prefix, $ignore_existing ) ) ) { // Added trim() as of BB v5 to rip off sometimes-leading newline char.
+				// Got FALSE as response... Skipped query so continue to the next.
+				$failedQueries++;
+				continue;
+			}
+			$prevQueryData = ''; // Clear out any previous query data that was not used due to not having the full statement.
+			$queryCount++;
 			
-		} // End while().
+			// Show a heartbeat to keep user up to date [and entertained ;)].
+			if ( 0 === ( $queryCount % self::HEARTBEAT_COUNT_LIMIT ) ) { // Display every X queries.
+				pb_backupbuddy::status( 'message', 'Working... Imported ' . $queryCount . ' queries so far.' );
+			}
+			
+			// If we are within 1 second of reaching maximum PHP runtime then stop here so that it can be picked up in another PHP process...
+			if ( ( ( microtime( true ) - $this->time_start ) + self::TIME_WIGGLE_ROOM ) >= $this->_maxExecutionTime ) {
+				pb_backupbuddy::status( 'message', 'Approaching limit of available PHP chunking time of `' . $this->_maxExecutionTime . '` sec. Ran for ' . round( microtime( true ) - $this->time_start, 3 ) . ' sec. Proceeding to use chunking.' );
+				if ( FALSE === ( $fsPointer = ftell( $fs ) ) ) {
+					pb_backupbuddy::status( 'error', 'Error #3289238: Unable to get ftell pointer of SQL file handle.' );
+					return false;
+				}
+				fclose( $fs );
+				return array( $fsPointer, $queryCount, $failedQueries, ( microtime( true ) - $this->time_start ) ); // filepointer location, number of queries done this pass, number of sql qeuries that failed, elapsed time during the import
+			} // End if.
+			
+		} // end while.
 		
-		fclose( $file_stream );
+		if ( ! feof( $fs ) ) {
+			pb_backupbuddy::status( 'error', 'Error #89443: fgets failed prematurely. Not at EOF.' );
+			return FALSE;
+		}
+		fclose( $fs );
 		
 		pb_backupbuddy::status( 'message', 'Import of SQL data in compatibility mode (PHP) complete.' );
-		pb_backupbuddy::status( 'message', 'Took ' . round( microtime( true ) - $this->time_start, 3 ) . ' seconds on ' . $query_count . ' queries. ' );
+		pb_backupbuddy::status( 'message', 'Took ' . round( microtime( true ) - $this->time_start, 3 ) . ' seconds on ' . $queryCount . ' queries. ' );
 		
 		return true;
 		
@@ -901,8 +956,11 @@ class pb_backupbuddy_mysqlbuddy {
 		}
 		
 		// Output which table we are able to create to help get an idea where we are in the import.
-		if ( 1 == preg_match( "/CREATE TABLE `?((\w|-)+)`?/i", $query, $matches ) ) {
+		if ( 1 == preg_match( "/^CREATE TABLE `?((\w|-)+)`?/i", $query, $matches ) ) {
 			pb_backupbuddy::status( 'details', 'Creating table `' . $matches[1] . '`.' );
+			if ( defined( 'PB_IMPORTBUDDY' ) ) {
+				echo "<script>bb_action( 'importingTable', '" . $matches[1] . "' );</script>";
+			}
 		}
 		
 		global $wpdb;
@@ -912,12 +970,38 @@ class pb_backupbuddy_mysqlbuddy {
 		
 		if ( false === $results ) {
 			if ( $ignore_existing !== true ) {
-				$mysql_error = mysql_error( $wpdb->dbh );
-				pb_backupbuddy::status( 'error', 'Error #9010: Unable to import SQL query: ' . $mysql_error );
-				if ( false !== stristr( $mysql_error, 'server has gone away' ) ) { // if string denotes that mysql server has gone away bail since it will likely just flood user with errors...
-					pb_backupbuddy::status( 'error', 'Error #9010b: Halting backup process as mysql server has gone away and database data could not be imported. Typically the restore cannot continue so the process has been halted. This is usually caused by a problematic mysql server at your hosting provider, low mysql timeouts, etc. Contact your hosting company for support.' );
-					pb_backupbuddy::status( 'details', 'Last query attempted: `' . $query . '`.' );
-					die( 'Error #948343: FATAL ERROR - IMPORT HALTED' );
+				$mysql_error = @mysql_error( $wpdb->dbh );
+				if ( '' == $mysql_error ) {
+					$mysql_error = $wpdb->last_error;
+				}
+				
+				$mysql_9010_log = ABSPATH . 'importbuddy/mysql_9010_log-' . pb_backupbuddy::$options['log_serial'] . '.txt';
+				if ( 0 == $this->_9010s_encountered ) { // Place a header at the top of this log with some debugging info.
+					//@unlink( $mysql_9010_log ); // Delete if already exists to avoid multiple logging of entire process. NO LONGER DELETED since this may be multipart chunked.
+					@file_put_contents( $mysql_9010_log,
+						"#####\n# This log contains all 9010 errors encountered.\n# Old prefix: `{$old_prefix}`.\n# New prefix: `{$new_prefix}`.\n# Time: `" . time() . "`.\n#####\n{$test}\n",
+						FILE_APPEND
+					);
+				}
+				
+				@file_put_contents( $mysql_9010_log,
+					"QUERY:\n" . $query .
+					"ERROR:\n" . $mysql_error . "\n\n",
+					FILE_APPEND
+				);
+				
+				$this->_9010s_encountered++;
+				if ( $this->_9010s_encountered > $this->_max_9010s_allowed ) { // Too many, don't show more.
+					if ( $this->_9010s_encountered == ( $this->_max_9010s_allowed + 1 ) ) {
+						pb_backupbuddy::status( 'error', 'Additional 9010 errors were encountered but have not been displayed to avoid flooding the screen. All 9010 errors are logged to `' . $mysql_9010_log . '` if possible.' );
+					}
+				} else { // Show error.
+					pb_backupbuddy::status( 'error', 'Error #9010: Unable to import SQL query. Error: `' . $mysql_error . '`.' );
+					if ( false !== stristr( $mysql_error, 'server has gone away' ) ) { // if string denotes that mysql server has gone away bail since it will likely just flood user with errors...
+						pb_backupbuddy::status( 'error', 'Error #9010b: Halting backup process as mysql server has gone away and database data could not be imported. Typically the restore cannot continue so the process has been halted. This is usually caused by a problematic mysql server at your hosting provider, low mysql timeouts, etc. Contact your hosting company for support.' );
+						pb_backupbuddy::status( 'details', 'Last query attempted: `' . $query . '`.' );
+						die( 'Error #948343: FATAL ERROR - IMPORT HALTED' );
+					}
 				}
 			}
 			return false;
@@ -930,4 +1014,3 @@ class pb_backupbuddy_mysqlbuddy {
 	
 	
 } // End pb_backupbuddy_mysqlbuddy class.
-?>

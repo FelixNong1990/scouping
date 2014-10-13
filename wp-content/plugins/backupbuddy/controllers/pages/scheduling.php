@@ -1,5 +1,5 @@
 <?php
-//print_r( backupbuddy_api0::getOverview() );
+//print_r( backupbuddy_api::getOverview() );
 
 
 //pb_backupbuddy::load_script( 'jquery-ui-core', true ); // WP core script.
@@ -34,16 +34,15 @@ $date_format_example = 'mm/dd/yyyy hh:mm [am/pm]'; // Example date format for di
 // HANDLE SCHEDULE DELETION.
 if ( pb_backupbuddy::_POST( 'bulk_action' ) == 'delete_schedule' ) {
 	pb_backupbuddy::verify_nonce( pb_backupbuddy::_POST( '_wpnonce' ) ); // Security check to prevent unauthorized deletions by posting from a remote place.
+	
 	$deleted_schedules = array();
 	foreach( pb_backupbuddy::_POST( 'items' ) as $id ) {
 		$deleted_schedules[] = htmlentities( pb_backupbuddy::$options['schedules'][$id]['title'] );
-		$next_scheduled_time = wp_next_scheduled( 'pb_backupbuddy-cron_scheduled_backup', array( (int)$id ) );
-		if ( FALSE === backupbuddy_core::unschedule_event( $next_scheduled_time, 'pb_backupbuddy-cron_scheduled_backup', array( (int)$id ) ) ) {
-			pb_backupbuddy::alert( 'Error #67686793. Unable to remove schedule. Please check your BackupBuddy error log.' );
-		}
-		unset( pb_backupbuddy::$options['schedules'][$id] );
-	}
-	pb_backupbuddy::save();
+		
+		backupbuddy_api::deleteSchedule( $id, $confirm = true );
+		
+	} // end foreach.
+	
 	pb_backupbuddy::alert( __( 'Deleted schedule(s):', 'it-l10n-backupbuddy' ) . ' ' . implode( ', ', $deleted_schedules ) );
 } // End if deleting backup(s).
 
@@ -212,7 +211,7 @@ if ( ( $submitted_schedule != '' ) && ( count ( $submitted_schedule['errors'] ) 
 		
 		if ( $error === false ) {
 			
-			$add_response = backupbuddy_core::add_backup_schedule(
+			$add_response = backupbuddy_api::addSchedule(
 				$title = $submitted_schedule['data']['title'],
 				$profile = $submitted_schedule['data']['profile'],
 				$interval = $submitted_schedule['data']['interval'],

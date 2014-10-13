@@ -15,22 +15,7 @@ jQuery(document).ready(function() {
 	
 	
 	
-	jQuery('.pb_backupbuddy_refresh_stats').click(function(e) {
-		loading = jQuery(this).children( '.pb_backupbuddy_loading' );
-		loading.show();
-		
-		result_obj = jQuery( '#pb_stats_' + jQuery(this).attr( 'rel' ) );
-		
-		jQuery.post( jQuery(this).attr( 'alt' ), jQuery(this).closest( 'form' ).serialize(), 
-			function(data) {
-				//alert(data);
-				loading.hide();
-				result_obj.html( data );
-			}
-		); //,"json");
-		
-		return false;
-	});
+	
 	
 	
 	

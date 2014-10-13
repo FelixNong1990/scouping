@@ -170,7 +170,7 @@ class pb_backupbuddy_ui {
 					if ( count( $settings['bulk_actions'] ) == 1 ) {
 						foreach( $settings['bulk_actions'] as $action_slug => $action_title ) {
 							echo '<input type="hidden" name="bulk_action" value="' . $action_slug . '">';
-							echo '<input type="submit" name="do_bulk_action" value="' . $action_title . '" class="button secondary-button">';
+							echo '<input type="submit" name="do_bulk_action" value="' . $action_title . '" class="button secondary-button backupbuddy-do_bulk_action">';
 						}
 					} else {
 						echo '<select name="bulk_action" class="actions">';
@@ -180,7 +180,7 @@ class pb_backupbuddy_ui {
 						}
 						echo '</select> &nbsp;';
 						//echo self::button( '#', 'Apply' );
-						echo '<input type="submit" name="do_bulk_action" value="Apply" class="button secondary-button">';
+						echo '<input type="submit" name="do_bulk_action" value="Apply" class="button secondary-button backupbuddy-do_bulk_action">';
 					}
 					echo '&nbsp;&nbsp;';
 					echo $settings['after_bulk'];
@@ -561,11 +561,11 @@ class pb_backupbuddy_ui {
 				$active_tab_class = 'nav-tab-active';
 			}
 			if ( isset( $tab['ajax'] ) && ( $tab['ajax_url'] != '' ) ) { // AJAX tab.
-				$return .= '<a class="nav-tab nav-tab-' . $i . ' ' . $active_tab_class . '" style="' . $tab['css'] . '" href="' . $tab['ajax_url'] . '">' . $tab['title'] . '</a>';
+				$return .= '<a class="nav-tab nav-tab-' . $i . ' ' . $active_tab_class . ' bb-tab-' . $tab['slug'] . '" href="javascript:void(0)" data-ajax="' . $tab['ajax_url'] . '">' . $tab['title'] . '</a>';
 			} elseif ( isset( $tab['url'] ) && ( $tab['url'] != '' ) ) {
-				$return .= '<a class="nav-tab nav-tab-' . $i . ' ' . $active_tab_class . '" style="' . $tab['css'] . '" href="' . $tab['url'] . '">' . $tab['title'] . '</a>';
+				$return .= '<a class="nav-tab nav-tab-' . $i . ' ' . $active_tab_class . ' bb-tab-' . $tab['slug'] . '" href="' . $tab['url'] . '">' . $tab['title'] . '</a>';
 			} else { // Standard; NO AJAX.
-				$return .= '<a class="nav-tab nav-tab-' . $i . ' ' . $active_tab_class . '" style="' . $tab['css'] . '" href="#' . $prefix . $this->_tab_interface_tag . '_tab_' . $tab['slug'] . '">' . $tab['title'] . '</a>';
+				$return .= '<a class="nav-tab nav-tab-' . $i . ' ' . $active_tab_class . ' bb-tab-' . $tab['slug'] . '" style="' . $tab['css'] . '" href="#' . $prefix . $this->_tab_interface_tag . '_tab_' . $tab['slug'] . '">' . $tab['title'] . '</a>';
 			}
 			$i++;
 		}

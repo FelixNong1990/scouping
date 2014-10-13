@@ -73,7 +73,7 @@ $data = array(); // To pass to view.
 // Reset settings to defaults.
 if ( pb_backupbuddy::_POST( 'reset_defaults' ) != '' ) {
 	if ( call_user_func(  'pb_backupbuddy::reset_options', true ) === true ) {
-		backupbuddy_core::verify_directories(); // Re-verify directories such as backup dir, temp, etc.
+		backupbuddy_core::verify_directories( $skipTempGeneration = true ); // Re-verify directories such as backup dir, temp, etc.
 		//pb_backupbuddy::alert( 'Plugin settings have been reset to defaults.' );
 	} else {
 		pb_backupbuddy::alert( 'Unable to reset plugin settings. Verify you are running the latest version.' );

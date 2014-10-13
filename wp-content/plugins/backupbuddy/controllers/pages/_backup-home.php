@@ -8,7 +8,9 @@ pb_backupbuddy_live::generate_queue();
 // Display upgrade notifcation if running an old major version.
 if ( false !== ( $latestVersion = backupbuddy_core::determineLatestVersion() ) ) {
 	if ( version_compare( pb_backupbuddy::settings( 'version' ), $latestVersion[1], '<' ) ) {
-		pb_backupbuddy::alert( 'A new BackupBuddy version is available, v' . $latestVersion[0] . '. You are currently running v' . pb_backupbuddy::settings( 'version' ) . '. Update on the <a href="plugins.php">WordPress Plugins page</a>.' );
+		$message = 'A new BackupBuddy version is available, v' . $latestVersion[0] . '. You are currently running v' . pb_backupbuddy::settings( 'version' ) . '. Update on the <a href="plugins.php">WordPress Plugins page</a>.';
+		$hash = md5( $message );
+		pb_backupbuddy::disalert( $hash, $message );
 	}
 }
 ?>
@@ -79,6 +81,7 @@ foreach( $preflight_checks as $preflight_check ) {
 if ( count( $alert_message ) > 0 ) {
 	//pb_backupbuddy::alert( implode( '<hr style="border: 1px dashed #E6DB55; border-bottom: 0;">', $alert_message ) );
 }
+
 
 
 $view_data['backups'] = backupbuddy_core::backups_list( 'default' );

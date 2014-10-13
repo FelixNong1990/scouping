@@ -96,13 +96,15 @@ if ( !empty( $_POST['delete_file'] ) ) {
 	} else {
 		pb_backupbuddy::alert( __('No backups were deleted.', 'it-l10n-backupbuddy' ) );
 	}
+	echo '<br>';
 }
 
 // Copy ftp backups to the local backup files
-if ( !empty( $_GET['copy_file'] ) ) {
-	pb_backupbuddy::alert( sprintf( _x('The remote file is now being copied to your %1$slocal backups%2$s', '%1$s and %2$s are open and close <a> tags', 'it-l10n-backupbuddy' ), '<a href="' . pb_backupbuddy::page_url() . '">', '</a>.' ) );
+if ( !empty( $_GET['cpy_file'] ) ) {
+	pb_backupbuddy::alert( 'The remote file is now being copied to your local backups. If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.' );
+	echo '<br>';
 	pb_backupbuddy::status( 'details',  'Scheduling Cron for creating ftp copy.' );
-	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_ftp_copy' ), array( $_GET['copy_file'], $ftp_server, $ftp_username, $ftp_password, $ftp_directory, $port, $ftps ) );
+	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_ftp_copy' ), array( $_GET['cpy_file'], $ftp_server, $ftp_username, $ftp_password, $ftp_directory, $port, $ftps ) );
 	spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 	update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 }
@@ -192,10 +194,13 @@ if ( $got_modified === true ) { // FTP server supports sorting by modified date.
 }
 
 
-echo '<h3>', __('Viewing', 'it-l10n-backupbuddy' ), ' `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
+$urlPrefix = pb_backupbuddy::ajax_url( 'remoteClient' ) . '&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) );
+
+
+//echo '<h3>', __('Viewing', 'it-l10n-backupbuddy' ), ' `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
 ?>
 <div style="max-width: 950px;">
-<form id="posts-filter" enctype="multipart/form-data" method="post" action="<?php echo pb_backupbuddy::page_url() . '&custom=' . $_GET['custom'] . '&destination_id=' . $_GET['destination_id'];?>">
+<form id="posts-filter" enctype="multipart/form-data" method="post" action="<?php echo $urlPrefix; ?>">
 	<div class="tablenav">
 		<div class="alignleft actions">
 			<input type="submit" name="delete_file" value="<?php _e('Delete from FTP', 'it-l10n-backupbuddy' );?>" class="button-secondary delete" />
@@ -263,7 +268,7 @@ echo '<h3>', __('Viewing', 'it-l10n-backupbuddy' ), ' `' . $destination['title']
 							<?php echo pb_backupbuddy::$format->file_size( $backup['size'] ); ?>
 						</td>
 						<td>
-							<?php echo '<a href="' . pb_backupbuddy::page_url() . '&custom=' . $_GET['custom'] . '&destination_id=' . $_GET['destination_id'] . '&#38;copy_file=' . $backup['file'] . '">Copy to local</a>'; ?>
+							<?php echo '<a href="' . $urlPrefix . '&#38;cpy_file=' . $backup['file'] . '">Copy to local</a>'; ?>
 						</td>
 					</tr>
 					<?php

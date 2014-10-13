@@ -12,8 +12,10 @@ class backupbuddy_restore_files {
 	 *
 	 */
 	public static function restore( $archive_file, $files, $finalPath, &$zipbuddy = null ) {
-		if ( ! current_user_can( pb_backupbuddy::$options['role_access'] ) ) {
-			die( 'Error #473623. Access Denied.' );
+		if ( !defined( 'PB_STANDALONE' ) || PB_STANDALONE === false ) {
+			if ( ! current_user_can( pb_backupbuddy::$options['role_access'] ) ) {
+				die( 'Error #473623. Access Denied.' );
+			}
 		}
 		
 		$serial = backupbuddy_core::get_serial_from_file( $archive_file ); // serial of archive.
@@ -40,7 +42,7 @@ class backupbuddy_restore_files {
 		$temp_dir = get_temp_dir();
 		$destination = $temp_dir . 'backupbuddy-' . $serial;
 		if ( ( ( ! file_exists( $destination ) ) && ( false === mkdir( $destination, 0777, true ) ) ) ) {
-			$error = 'Error #458485945: Unable to create temporary location.';
+			$error = 'Error #458485945: Unable to create temporary location `' . $destination . '`. Check permissions.';
 			pb_backupbuddy::status( 'error', $error );
 			return false;
 		}
@@ -97,16 +99,16 @@ class backupbuddy_restore_files {
 			// Made it this far so files all exist. Move them all.
 			foreach( $files as $file ) {
 				@trigger_error( '' ); // Clear out last error.
-				if ( false === @rename( $destination . '/' . $file, $finalPath . $file ) ) {
+				if ( false === pb_backupbuddy::$filesystem->recursive_copy( $destination . '/' . $file, $finalPath . $file ) ) {
 					$last_error = error_get_last();
 					if ( is_array( $last_error ) ) {
 						//print_r( $last_error );
 						pb_backupbuddy::status( 'error', $last_error['message'] . ' File: `' . $last_error['file'] . '`. Line: `' . $last_error['line'] . '`.' );
 					}
-					$error = 'Error #9035. Unable to move restored file `' . $destination . '/' . $file . '` to `' . $finalPath . $file . '`. Verify permissions on destination location & that the destination directory/file does not already exist.';
+					$error = 'Error #9035. Unable to copyrestored file `' . $destination . '/' . $file . '` to `' . $finalPath . $file . '`. Verify permissions on destination location & that the destination directory/file does not already exist.';
 					pb_backupbuddy::status( 'error', $error );
 				} else {
-					$details = 'Moved `' . $destination . '/' . $file . '` to `' . $finalPath . $file . '`.<br>';
+					$details = 'Recursively moved `' . $destination . '/' . $file . '` to `' . $finalPath . $file . '`.<br>';
 					pb_backupbuddy::status( 'details', $details );
 					$success = true;
 				}

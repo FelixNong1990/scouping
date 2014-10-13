@@ -308,7 +308,32 @@ function register_activation_hook() {
 }
 function load_plugin_textdomain() {
 }
+function current_user_can( $role ) {
+	return true;
+}
+function get_temp_dir() {
+	
+	if ( function_exists('sys_get_temp_dir') ) {
+		$temp = sys_get_temp_dir();
+		if ( @is_dir( $temp ) && is_writable( $temp ) )
+			return rtrim( $temp, '/\\' ) . '/';
+	}
+	
+	$temp = ABSPATH . 'temp/';
+	@mkdir( $temp );
+	if ( is_dir( $temp ) && is_writable( $temp ) ) {
+		return $temp;
+	}
+	
+	$temp = '/tmp/';
+	@mkdir( $temp );
+	return $temp;
+}
 
+
+function wp_upload_dir() {
+	return array( 'basedir' => ABSPATH );
+}
 
 
 
@@ -333,6 +358,9 @@ if ( !defined('WP_DEBUG_LOG') )
 if ( !defined('WP_CACHE') )
 	define('WP_CACHE', false);
 
+function admin_url( $val ) {
+	return '?' . $val;
+}
 
 
 ?>

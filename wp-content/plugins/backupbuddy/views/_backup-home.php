@@ -25,7 +25,7 @@ if (
 	pb_backupbuddy::load_view( '_quicksetup', array() );
 	return;
 } else {
-	pb_backupbuddy::$ui->title( 'Backup Site' . ' ' . pb_backupbuddy::video( '9ZHWGjBr84s', __('Backups page tutorial', 'it-l10n-backupbuddy' ), false ) );
+	pb_backupbuddy::$ui->title( __( 'Backup', 'it-l10n-backupbuddy' ) . ' <a href="javascript:void(0)" class="add-new-h2" onClick="jQuery(\'.backupbuddy-recent-backups\').toggle()">View recently made backups</a>' );
 }
 
 
@@ -173,14 +173,14 @@ if ( pb_backupbuddy::_POST( 'add_profile' ) == 'true' ) {
 	}
 	
 	
-	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after ) {
+	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after, mode ) {
 		
 		if ( ( callback_data != '' ) && ( callback_data != 'delayed_send' ) ) {
 			jQuery.post( '<?php echo pb_backupbuddy::ajax_url( 'remote_send' ); ?>', { destination_id: destination_id, destination_title: destination_title, file: callback_data, trigger: 'manual', delete_after: delete_after }, 
 				function(data) {
 					data = jQuery.trim( data );
 					if ( data.charAt(0) != '1' ) {
-						alert( '<?php _e('Error starting remote send', 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
+						alert( '<?php _e("Error starting remote send", 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
 					} else {
 						if ( delete_after == true ) {
 							var delete_alert = "<?php _e( 'The local backup will be deleted upon successful transfer as selected.', 'it-l10n-backupbuddy' ); ?>";
@@ -370,6 +370,151 @@ if ( pb_backupbuddy::_POST( 'add_profile' ) == 'true' ) {
 
 
 
+<div class="backupbuddy-recent-backups" style="display: none;">
+	
+	<?php
+	$recentBackups_list = glob( backupbuddy_core::getLogDirectory() . 'fileoptions/*.txt' );
+
+	if ( ! is_array( $recentBackups_list ) ) {
+		$recentBackups_list = array();
+	}
+
+	if ( count( $recentBackups_list ) == 0 ) {
+		_e( 'No backups have been created recently.', 'it-l10n-backupbuddy' );
+	} else {
+		
+		// Backup type.
+		$pretty_type = array(
+			'full'	=>	'Full',
+			'db'	=>	'Database',
+			'files' =>	'Files',
+		);
+		
+		// Read in list of backups.
+		$recent_backup_count_cap = 5; // Max number of recent backups to list.
+		$recentBackups = array();
+		foreach( $recentBackups_list as $backup_fileoptions ) {
+			
+			require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
+			$backup = new pb_backupbuddy_fileoptions( $backup_fileoptions, $read_only = true );
+			if ( true !== ( $result = $backup->is_ok() ) ) {
+				pb_backupbuddy::status( 'error', __('Unable to access fileoptions data file.', 'it-l10n-backupbuddy' ) . ' Error: ' . $result );
+				continue;
+			}
+			$backup = &$backup->options;
+			
+			if ( !isset( $backup['serial'] ) || ( $backup['serial'] == '' ) ) {
+				continue;
+			}
+			if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
+				$status = '<span class="pb_label pb_label-success">Completed</span>';
+			} elseif ( $backup['finish_time'] == -1 ) {
+				$status = '<span class="pb_label pb_label-warning">Cancelled</span>';
+			} elseif ( FALSE === $backup['finish_time'] ) {
+				$status = '<span class="pb_label pb_label-error">Failed (timeout?)</span>';
+			} else {
+				$status = '<span class="pb_label pb_label-warning">In progress or timed out</span>';
+			}
+			$status .= '<br>';
+			
+			
+			// Technical details link.
+			$status .= '<div class="row-actions">';
+			$status .= '<a title="' . __( 'Backup Process Technical Details', 'it-l10n-backupbuddy' ) . '" href="' . pb_backupbuddy::ajax_url( 'integrity_status' ) . '&serial=' . $backup['serial'] . '&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox">View Details</a>';
+			
+			$sumLogFile = backupbuddy_core::getLogDirectory() . 'status-' . $backup['serial'] . '_sum_' . pb_backupbuddy::$options['log_serial'] . '.txt';
+			if ( file_exists( $sumLogFile ) ) {
+				$status .= '<div class="row-actions"><a title="' . __( 'View Backup Log', 'it-l10n-backupbuddy' ) . '" href="' . pb_backupbuddy::ajax_url( 'view_log' ) . '&serial=' . $backup['serial'] . '&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox">' . __( 'View Log', 'it-l10n-backupbuddy' ) . '</a></div>';
+			}
+			
+			$status .= '</div>';
+			
+			// Calculate finish time (if finished).
+			if ( $backup['finish_time'] > 0 ) {
+				$finish_time = pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $backup['finish_time'] ) ) . '<br><span class="description">' . pb_backupbuddy::$format->time_ago( $backup['finish_time'] ) . ' ago</span>';
+			} else { // unfinished.
+				$finish_time = '<i>Unfinished</i>';
+			}
+			
+			$backupTitle = '<span class="backupbuddyFileTitle" style="color: #000;" title="' . basename( $backup['archive_file'] ) . '">' . pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $backup['start_time'] ), 'l, F j, Y - g:i:s a' ) . ' (' . pb_backupbuddy::$format->time_ago( $backup['start_time'] ) . ' ago)</span><br><span class="description">' . basename( $backup['archive_file'] ) . '</span>';
+			
+			if ( isset( $backup['profile'] ) ) {
+				$backupType = '<div>
+					<span style="color: #AAA; float: left;">' . pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type ) . '</span>
+					<span style="display: inline-block; float: left; height: 15px; border-right: 1px solid #EBEBEB; margin-left: 6px; margin-right: 6px;"></span>'
+					. $backup['profile']['title'] .
+				'</div>';
+			} else {
+				$backupType = '<span class="description">Unknown</span>';
+			}
+			
+			if ( isset( $backup['archive_size'] ) && ( $backup['archive_size'] > 0 ) ) {
+				$archive_size = pb_backupbuddy::$format->file_size( $backup['archive_size'] );
+			} else {
+				$archive_size = 'n/a';
+			}
+			
+			// Append to list.
+			$recentBackups[ $backup['serial'] ] = array(
+				array( basename( $backup['archive_file'] ), $backupTitle ),
+				$backupType,
+				$archive_size,
+				ucfirst( $backup['trigger'] ),
+				$status,
+				'start_timestamp' => $backup['start_time'], // Used by array sorter later to put backups in proper order.
+			);
+			
+		}
+
+		$columns = array(
+			__('Recently Made Backups (Start Time)', 'it-l10n-backupbuddy' ),
+			__('Type | Profile', 'it-l10n-backupbuddy' ),
+			__('File Size', 'it-l10n-backupbuddy' ),
+			__('Trigger', 'it-l10n-backupbuddy' ),
+			__('Status', 'it-l10n-backupbuddy' ),
+		);
+
+		function pb_backupbuddy_aasort (&$array, $key) {
+			$sorter=array();
+			$ret=array();
+			reset($array);
+			foreach ($array as $ii => $va) {
+			    $sorter[$ii]=$va[$key];
+			}
+			asort($sorter);
+			foreach ($sorter as $ii => $va) {
+			    $ret[$ii]=$array[$ii];
+			}
+			$array=$ret;
+		}
+
+		pb_backupbuddy_aasort( $recentBackups, 'start_timestamp' ); // Sort by multidimensional array with key start_timestamp.
+		$recentBackups = array_reverse( $recentBackups ); // Reverse array order to show newest first.
+		
+		$recentBackups = array_slice( $recentBackups, 0, $recent_backup_count_cap ); // Only display most recent X number of backups in list.
+		
+		pb_backupbuddy::$ui->list_table(
+			$recentBackups,
+			array(
+				'action'		=>	pb_backupbuddy::page_url(),
+				'columns'		=>	$columns,
+				'css'			=>	'width: 100%;',
+			)
+		);
+		
+		echo '<div class="alignright actions">';
+		pb_backupbuddy::$ui->note( 'Hover over items above for additional options.' );
+		echo '</div>';
+		
+	} // end if recent backups exist.
+	?>
+	
+	<br><br><br>
+</div>
+
+
+
+
 <div class="profile_box">
 	<div class="profile_choose">
 		<?php _e( 'Choose a backup profile to run:', 'it-l10n-backupbuddy' ); ?>
@@ -444,33 +589,6 @@ if ( pb_backupbuddy::_POST( 'add_profile' ) == 'true' ) {
 <?php
 pb_backupbuddy::flush();
 
-
-/********** START TABS **********/
-
-echo '<br>';
-pb_backupbuddy::$ui->start_tabs(
-	'backup_locations',
-	array(
-		array(
-			'title'		=>		'Local Backups',
-			'slug'		=>		'local',
-			'css'		=>		'margin-top: -11px;',
-		),
-		array(
-			'title'		=>		'Recently Made Backups',
-			'slug'		=>		'recent_backups',
-			'css'		=>		'margin-top: -11px;',
-		),
-	),
-	'width: 100%;'
-);
-
-
-
-
-
-
-pb_backupbuddy::$ui->start_tab( 'local' );
 $listing_mode = 'default';
 require_once( '_backup_listing.php' );
 
@@ -483,155 +601,6 @@ if ( is_network_admin() ) {
 }
 echo '?page=pb_backupbuddy_destinations" class="button button-primary">View & Manage remote destination files</a>';
 
-pb_backupbuddy::$ui->end_tab();
-
-
-
-
-
-
-
-
-pb_backupbuddy::$ui->start_tab( 'recent_backups' );
-
-
-$backups_list = glob( backupbuddy_core::getLogDirectory() . 'fileoptions/*.txt' );
-
-if ( ! is_array( $backups_list ) ) {
-	$backups_list = array();
-}
-
-if ( count( $backups_list ) == 0 ) {
-	_e( 'No backups have been created recently.', 'it-l10n-backupbuddy' );
-} else {
-	
-	// Backup type.
-	$pretty_type = array(
-		'full'	=>	'Full',
-		'db'	=>	'Database',
-		'files' =>	'Files',
-	);
-	
-	// Read in list of backups.
-	$recent_backup_count_cap = 5; // Max number of recent backups to list.
-	$backups = array();
-	foreach( $backups_list as $backup_fileoptions ) {
-		
-		require_once( pb_backupbuddy::plugin_path() . '/classes/fileoptions.php' );
-		$backup = new pb_backupbuddy_fileoptions( $backup_fileoptions, $read_only = true );
-		if ( true !== ( $result = $backup->is_ok() ) ) {
-			pb_backupbuddy::status( 'error', __('Unable to access fileoptions data file.', 'it-l10n-backupbuddy' ) . ' Error: ' . $result );
-			continue;
-		}
-		$backup = &$backup->options;
-		
-		if ( !isset( $backup['serial'] ) || ( $backup['serial'] == '' ) ) {
-			continue;
-		}
-		if ( ( $backup['finish_time'] >= $backup['start_time'] ) && ( 0 != $backup['start_time'] ) ) {
-			$status = '<span class="pb_label pb_label-success">Completed</span>';
-		} elseif ( $backup['finish_time'] == -1 ) {
-			$status = '<span class="pb_label pb_label-warning">Cancelled</span>';
-		} else {
-			$status = '<span class="pb_label pb_label-warning">In progress or timed out</span>';
-		}
-		$status .= '<br>';
-		
-		
-		// Technical details link.
-		$status .= '<div class="row-actions">';
-		$status .= '<a title="' . __( 'Backup Process Technical Details', 'it-l10n-backupbuddy' ) . '" href="' . pb_backupbuddy::ajax_url( 'integrity_status' ) . '&serial=' . $backup['serial'] . '&#038;TB_iframe=1&#038;width=640&#038;height=600" class="thickbox">View Details</a>';
-		$status .= '</div>';
-		
-		// Calculate finish time (if finished).
-		if ( $backup['finish_time'] > 0 ) {
-			$finish_time = pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $backup['finish_time'] ) ) . '<br><span class="description">' . pb_backupbuddy::$format->time_ago( $backup['finish_time'] ) . ' ago</span>';
-		} else { // unfinished.
-			$finish_time = '<i>Unfinished</i>';
-		}
-		
-		$backupTitle = '<span class="backupbuddyFileTitle" style="color: #000;" title="' . basename( $backup['archive_file'] ) . '">' . pb_backupbuddy::$format->date( pb_backupbuddy::$format->localize_time( $backup['start_time'] ), 'l, F j, Y - g:i:s a' ) . ' (' . pb_backupbuddy::$format->time_ago( $backup['start_time'] ) . ' ago)</span><br><span class="description">' . basename( $backup['archive_file'] ) . '</span>';
-		
-		if ( isset( $backup['profile'] ) ) {
-			$backupType = '<div>
-				<span style="color: #AAA; float: left;">' . pb_backupbuddy::$format->prettify( $backup['profile']['type'], $pretty_type ) . '</span>
-				<span style="display: inline-block; float: left; height: 15px; border-right: 1px solid #EBEBEB; margin-left: 6px; margin-right: 6px;"></span>'
-				. $backup['profile']['title'] .
-			'</div>';
-		} else {
-			$backupType = '<span class="description">Unknown</span>';
-		}
-		
-		if ( isset( $backup['archive_size'] ) && ( $backup['archive_size'] > 0 ) ) {
-			$archive_size = pb_backupbuddy::$format->file_size( $backup['archive_size'] );
-		} else {
-			$archive_size = 'n/a';
-		}
-		
-		// Append to list.
-		$backups[ $backup['serial'] ] = array(
-			array( basename( $backup['archive_file'] ), $backupTitle ),
-			$backupType,
-			$archive_size,
-			ucfirst( $backup['trigger'] ),
-			$status,
-			'start_timestamp' => $backup['start_time'], // Used by array sorter later to put backups in proper order.
-		);
-		
-	}
-
-	$columns = array(
-		__('Backups (Start Time)', 'it-l10n-backupbuddy' ),
-		__('Type | Profile', 'it-l10n-backupbuddy' ),
-		__('File Size', 'it-l10n-backupbuddy' ),
-		__('Trigger', 'it-l10n-backupbuddy' ),
-		__('Status', 'it-l10n-backupbuddy' ),
-	);
-
-	function pb_backupbuddy_aasort (&$array, $key) {
-		$sorter=array();
-		$ret=array();
-		reset($array);
-		foreach ($array as $ii => $va) {
-		    $sorter[$ii]=$va[$key];
-		}
-		asort($sorter);
-		foreach ($sorter as $ii => $va) {
-		    $ret[$ii]=$array[$ii];
-		}
-		$array=$ret;
-	}
-
-	pb_backupbuddy_aasort( $backups, 'start_timestamp' ); // Sort by multidimensional array with key start_timestamp.
-	$backups = array_reverse( $backups ); // Reverse array order to show newest first.
-	
-	$backups = array_slice( $backups, 0, $recent_backup_count_cap ); // Only display most recent X number of backups in list.
-	
-	pb_backupbuddy::$ui->list_table(
-		$backups,
-		array(
-			'action'		=>	pb_backupbuddy::page_url(),
-			'columns'		=>	$columns,
-			'css'			=>	'width: 100%;',
-		)
-	);
-	
-	echo '<div class="alignright actions">';
-	pb_backupbuddy::$ui->note( 'Hover over items above for additional options.' );
-	echo '</div>';
-	
-} // end if recent backups exist.
-
-
-pb_backupbuddy::$ui->end_tab();
-
-
-
-
-pb_backupbuddy::$ui->end_tabs();
-
-
-/********** END TABS **********/
 
 
 

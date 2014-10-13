@@ -3,6 +3,38 @@
 		cursor: pointer;
 	}
 </style>
+<script>
+jQuery(document).ready(function() {
+	
+	jQuery('.pb_backupbuddy_testErrorLog').click(function(e) {
+		jQuery( '.pb_backupbuddy_loading' ).show();
+		jQuery.post( jQuery(this).attr( 'rel' ), { function: 'testErrorLog' }, 
+			function(data) {
+				jQuery( '.pb_backupbuddy_loading' ).hide();
+				alert( data );
+			}
+		);
+		return false;
+	});
+	
+	jQuery('.pb_backupbuddy_refresh_stats').click(function(e) {
+		loading = jQuery(this).children( '.pb_backupbuddy_loading' );
+		loading.show();
+		
+		result_obj = jQuery( '#pb_stats_' + jQuery(this).attr( 'rel' ) );
+		
+		jQuery.post( jQuery(this).attr( 'alt' ), jQuery(this).closest( 'form' ).serialize(), 
+			function(data) {
+				//alert(data);
+				loading.hide();
+				result_obj.html( data );
+			}
+		); //,"json");
+		
+		return false;
+	});
+});
+</script>
 <?php
 /*
  *	IMPORTANT NOTE:
@@ -119,7 +151,7 @@ function pb_backupbuddy_get_loadavg() {
 			if ( $latest_backupbuddy_version == pb_backupbuddy::settings( 'version' ) ) { // At absolute latest including minor.
 				$suggestion_text .= ' (major version) or ' . $latest_backupbuddy_version . ' (<a href="options-general.php?page=ithemes-licensing" title="You may enable upgrading to the quick release version on the iThemes Licensing page.">quick release</a>)';
 			} elseif ( $latest_backupbuddy_nonminor_version != $latest_backupbuddy_version ) { // Minor version available that is newer than latest major.
-				$suggestion_text .= ' (major version) or ' . $latest_backupbuddy_version . ' (<a href="options-general.php?page=ithemes-licensing" title="You may enable upgrading to the quick release version on the iThemes Licensing page.">quick release version</a>; <a href="plugins.php?ithemes-updater-force-minor-update=1" title="Once you have licensed BackupBuddy you may select this to go to the Plugins page to upgrade to the latest quick release version. Typically only the main major versions are available for automatic updates but this option instructs the updater to display minor version updates for approximately one hour. If it does not immediately become available on the Plugins page, try refreshing a couple of times.">quick release settings</a>)';
+				$suggestion_text .= ' (major version) or ' . $latest_backupbuddy_version . ' (<a href="plugins.php?ithemes-updater-force-minor-update=1" title="You may enable upgrading to the quick release version on the iThemes Licensing page.">quick release version</a>; <a href="options-general.php?page=ithemes-licensing" title="Once you have licensed BackupBuddy you may select this to go to the Plugins page to upgrade to the latest quick release version. Typically only the main major versions are available for automatic updates but this option instructs the updater to display minor version updates for approximately one hour. If it does not immediately become available on the Plugins page, try refreshing a couple of times.">quick release settings</a>)';
 			} else {
 				$suggestion_text .= ' (latest)';
 			}
@@ -300,6 +332,65 @@ function pb_backupbuddy_get_loadavg() {
 	array_push( $tests, $parent_class_test );
 	
 	
+	
+	// ERROR LOGGING ENABLED/DISABLED
+	if ( true == ini_get( 'log_errors' ) ) {
+		$parent_class_val = 'enabled';
+	} else {
+		$parent_class_val = 'disabled';
+	}
+	$parent_class_test = array(
+		'title'			=>		'PHP Error Logging (log_errors)',
+		'suggestion'	=>		'enabled',
+		'value'			=>		$parent_class_val . ' [<a href="javascript:void(0)" class="pb_backupbuddy_testErrorLog" rel="' . pb_backupbuddy::ajax_url( 'testErrorLog' ) . '" title="' . __('Testing this will trigger an error_log() event with the content "BackupBuddy Test - This is only a test. A user triggered BackupBuddy to determine if writing to the PHP error log is working as expected."', 'it-l10n-backupbuddy' ) . '">Test</a>]',
+		'tip'			=>		__('Whether or not PHP errors are logged to a file or not. Set by php.ini log_errors', 'it-l10n-backupbuddy' ),
+	);
+	$parent_class_test['status'] = __('OK', 'it-l10n-backupbuddy' );
+	array_push( $tests, $parent_class_test );
+	
+	
+	
+	// ERROR LOG FILE
+	if ( !ini_get( 'error_log' ) ) {
+		$parent_class_val = 'unknown';
+	} else {
+		$parent_class_val = ini_get( 'error_log' );
+	}
+	$parent_class_test = array(
+		'title'			=>		'PHP Error Log File (error_log)',
+		'suggestion'	=>		'n/a',
+		'value'			=>		'<span style="display: inline-block; max-width: 250px;">' . $parent_class_val . '</span>',
+		'tip'			=>		__('File where PHP errors are logged to if PHP Error Logging is enabled (recommended). Set by php.ini error_log', 'it-l10n-backupbuddy' ),
+	);
+	$parent_class_test['status'] = __('OK', 'it-l10n-backupbuddy' );
+	array_push( $tests, $parent_class_test );
+	
+	
+	
+	// DISPLAY_ERRORS SETTING
+	if ( true == ini_get( 'display_errors' ) ) {
+		$parent_class_val = 'enabled';
+	} else {
+		$parent_class_val = 'disabled';
+	}
+	$parent_class_test = array(
+		'title'			=>		'PHP Display Errors to Screen (display_errors)',
+		'suggestion'	=>		'disabled',
+		'value'			=>		$parent_class_val,
+		'tip'			=>		__('Whether or not PHP errors are displayed on screen to the user. This is useful for troubleshooting PHP problems but disabling by default is more secure for production. Set by php.ini display_errors', 'it-l10n-backupbuddy' ),
+	);
+	$parent_class_test['status'] = __('OK', 'it-l10n-backupbuddy' );
+	/*
+	if ( 'enabled' != $parent_class_val ) {
+		$parent_class_test['status'] = __('OK', 'it-l10n-backupbuddy' );
+	} else {
+		$parent_class_test['status'] = __('WARNING', 'it-l10n-backupbuddy' );
+	}
+	*/
+	array_push( $tests, $parent_class_test );
+	
+	
+	
 	if ( defined( 'PB_IMPORTBUDDY' ) ) {
 		if ( !isset( pb_backupbuddy::$classes['zipbuddy'] ) ) {
 			require_once( pb_backupbuddy::plugin_path() . '/lib/zipbuddy/zipbuddy.php' );
@@ -331,11 +422,12 @@ function pb_backupbuddy_get_loadavg() {
 		
 		$parent_class_test = array(
 						'title'			=>		'Database Dump Methods',
-						'suggestion'	=>		'Command line [fastest] > PHP-based [slowest]',
+						'suggestion'	=>		'Command line and/or PHP-based',
 						'value'			=>		implode( ', ', pb_backupbuddy::$classes['mysqlbuddy']->get_methods() ),
 						'tip'			=>		__('Methods your server supports for dumping (backing up) your mysql database. These were tested values unless compatibility / troubleshooting settings override.', 'it-l10n-backupbuddy' ),
 					);
-		if ( in_array( 'commandline', pb_backupbuddy::$classes['mysqlbuddy']->get_methods() ) ) {
+		$db_methods = pb_backupbuddy::$classes['mysqlbuddy']->get_methods();
+		if ( in_array( 'commandline', $db_methods ) || in_array( 'php', $db_methods ) ) { // PHP is considered just as good as of BB v5.0.
 			$parent_class_test['status'] = __('OK', 'it-l10n-backupbuddy' );
 		} else {
 			$parent_class_test['status'] = __('WARNING', 'it-l10n-backupbuddy' );
@@ -579,12 +671,12 @@ function pb_backupbuddy_get_loadavg() {
 	// REGISTER GLOBALS
 	$disabled_functions = ini_get( 'disable_functions' );
 	if ( $disabled_functions == '' ) {
-		$disabled_functions = '<i>(none)</i>';
+		$disabled_functions = '(none)';
 	}
 	$parent_class_test = array(
 					'title'			=>		'Disabled PHP Functions',
 					'suggestion'	=>		'n/a',
-					'value'			=>		$disabled_functions,
+					'value'			=>		'<textarea style="width: 100%; max-height: 200px;" disabled="disabled">' . str_replace( ',', ', ', $disabled_functions ) . '</textarea>',
 					'tip'			=>		__('Some hosts block certain PHP functions for various reasons. Sometimes hosts block functions that are required for proper functioning of WordPress or plugins.', 'it-l10n-backupbuddy' ),
 				);
 	$disabled_functions = str_replace( ', ', ',', $disabled_functions ); // Normalize spaces or lack of spaces between disabled functions.

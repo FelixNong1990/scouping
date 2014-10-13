@@ -10,7 +10,7 @@ if ( stristr( PHP_OS, 'WIN' ) && !stristr( PHP_OS, 'DARWIN' ) ) { // Show in WIN
 
 
 <style type="text/css">
-	.pb_backupbuddy_customize_email_error_row, .pb_backupbuddy_customize_email_scheduled_start_row, .pb_backupbuddy_customize_email_scheduled_complete_row {
+	.pb_backupbuddy_customize_email_error_row, .pb_backupbuddy_customize_email_scheduled_start_row, .pb_backupbuddy_customize_email_scheduled_complete_row, .pb_backupbuddy_customize_email_send_finish_row {
 		display: none;
 	}
 	
@@ -22,9 +22,27 @@ if ( stristr( PHP_OS, 'WIN' ) && !stristr( PHP_OS, 'DARWIN' ) ) { // Show in WIN
 	}
 </style>
 <script type="text/javascript">
+
+	function checkEmailNotifyErrorStatus() {
+		if ( '' === jQuery('#pb_backupbuddy_email_notify_error').val() ) {
+			jQuery('#pb_backupbuddy_email_notify_error').css( 'background-color', '#FFA1A1' );
+			jQuery('#emailErrorNotifyHiddenAlert').show();
+		} else {
+			jQuery('#pb_backupbuddy_email_notify_error').css( 'background-color', '#FFF' );
+			jQuery('#emailErrorNotifyHiddenAlert').hide();
+		}
+	}
+	
+	
 	var pb_settings_changed = false;
 	
 	jQuery(document).ready(function() {
+		
+		
+		checkEmailNotifyErrorStatus();
+		jQuery('#pb_backupbuddy_email_notify_error').change( function(e) {
+			checkEmailNotifyErrorStatus();
+		});
 		
 		
 		jQuery( 'a' ) .click( function(e) {
@@ -52,7 +70,7 @@ if ( stristr( PHP_OS, 'WIN' ) && !stristr( PHP_OS, 'DARWIN' ) ) { // Show in WIN
 		
 	});
 	
-	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data ) {
+	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after, mode ) {
 		window.location.href = '<?php echo pb_backupbuddy::page_url(); ?>&custom=remoteclient&destination_id=' + destination_id;
 	}
 </script>
@@ -79,7 +97,7 @@ pb_backupbuddy::$ui->start_tabs(
 			'css'		=>		'margin-top: -11px;',
 		),
 		array(
-			'title'		=>		__( 'Logs & Other', 'it-l10n-backupbuddy' ),
+			'title'		=>		__( 'Other', 'it-l10n-backupbuddy' ),
 			'slug'		=>		'other',
 			'css'		=>		'margin-top: -11px;',
 		),

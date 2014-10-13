@@ -150,6 +150,27 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
          */
 		protected $_sapi_name = "";
 
+        /**
+         * Convenience boolean indicating if Warnings should be ignored when building archives
+         * 
+         * @var ignore_warnings	bool
+         */
+		protected $_ignore_warnings = null;
+		
+        /**
+         * Convenience boolean indicating if symlinks should be ignored/not-followed when building archives
+         * 
+         * @var ignore_symlinks	bool
+         */
+		protected $_ignore_symlinks = null;
+		
+         /**
+         * Convenience boolean indicating if compression shoul dbe used when building archives
+         * 
+         * @var compression	bool
+         */
+		protected $_compression = null;
+		
 		/**
 		 * 
 		 * get_transient_names_static()
@@ -201,6 +222,15 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 			// Set the sapi name so we can use it later			
 			$this->set_sapi_name();
 			
+			// Derive whether we are ignoring Warnings or not (can be overridden by method call)
+			$this->set_ignore_warnings();
+			
+			// Derive whether we are ignoring/not-following symlinks or not (can be overridden by method call)
+			$this->set_ignore_symlinks();
+			
+			// Derive whether compression should be used (can be overridden by method call)
+			$this->set_compression();
+						
 			// Make sure we load the core abstract class as this will always be needed
 			require_once( pb_backupbuddy::plugin_path() . '/lib/' . $this->_whereami . '/zbzipcore.php' );
 			
@@ -311,6 +341,112 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 		public function get_sapi_name() {
 			
 			return $this->_sapi_name;
+			
+		}
+
+		/**
+		 *	derive_optional_bool()
+		 *
+		 *	Utility function to derive the value of an optional boolean flag based on either
+		 *	a specifc value being given or the related global option being set or a given
+		 *	defautl value otherise. If the provided $value is null then this forces the use
+		 *	of the global option if it is set or otherwise the default value given
+		 *
+		 *	@param		string		$option		The option name in the global options array
+		 *	@param		bool		$value		Should be bool true|false but could be null
+		 *	@return		bool		Value of $_ignore_warnings
+		 *
+		 */
+		 protected function derive_optional_bool( $option, $value, $default ) {
+		 	$result = false;
+		 	if ( is_bool( $value )) {
+		 		$result = $value;
+		 	} elseif ( isset( pb_backupbuddy::$options[ $option ] ) ) {
+		 		( ( pb_backupbuddy::$options[ $option ] == '1' ) || ( pb_backupbuddy::$options[ $option ] == true ) ) ? $result = true : $result = false ;
+		 	} else {
+		 		$result = $default;
+		 	}
+		 	return $result;
+		 }
+		 
+		/**
+		 *	set_ignore_warnings()
+		 *
+		 *	@param	mixed	$ignore		true|false for specific setting or null for choice	
+		 *	@return	object				This object
+		 */
+		public function set_ignore_warnings( $ignore = null ) {
+		
+		 	$this->_ignore_warnings = $this->derive_optional_bool( 'ignore_zip_warnings', $ignore, false );
+		 	
+			return $this;
+			
+		}
+
+		/**
+		 *	get_ignore_warnings()
+		 *
+		 *	Returns the previously set ignore warnings flag
+		 *
+		 *	@return	mixed			The stored ignore warnings flag true|false|null
+		 */
+		public function get_ignore_warnings() {
+			
+			return $this->_ignore_warnings;
+			
+		}
+
+		/**
+		 *	set_ignore_symlinks()
+		 *
+		 *	@param	mixed	$ignore		true|false for specific setting or null for choice	
+		 *	@return	object				This object
+		 */
+		public function set_ignore_symlinks( $ignore = null ) {
+		
+		 	$this->_ignore_symlinks = $this->derive_optional_bool( 'ignore_zip_symlinks', $ignore, true );
+			
+			return $this;
+			
+		}
+
+		/**
+		 *	get_ignore_symlinks()
+		 *
+		 *	Returns the previously set ignore symlinks flag
+		 *
+		 *	@return	mixed			The stored ignore symlinks flag true|false|null
+		 */
+		public function get_ignore_symlinks() {
+			
+			return $this->_ignore_symlinks;
+			
+		}
+
+		/**
+		 *	set_compression()
+		 *
+		 *	@param	mixed	$compression	true|false for specific setting or null for choice	
+		 *	@return	object					This object
+		 */
+		public function set_compression( $compression = null ) {
+		
+		 	$this->_compression = $this->derive_optional_bool( 'compression', $compression, true );
+			
+			return $this;
+			
+		}
+
+		/**
+		 *	get_compression()
+		 *
+		 *	Returns the previously set compression flag
+		 *
+		 *	@return	mixed			The stored compression flag true|false|null
+		 */
+		public function get_compression() {
+			
+			return $this->_compression;
 			
 		}
 
@@ -466,7 +602,8 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 				if ( false !== $aggregate_available_methods ) {
 				
 					// Generate server signature and check it matches the cached signature
-					$server_signature_string = php_uname() . " : " . ( ( $filemodtime = filemtime( __FILE__ ) ) ? (string) $filemodtime : '1' );
+					// Use current filename as component as it should be unique enough for this purpose
+					$server_signature_string = __FILE__ . " : " . ( ( $filemodtime = filemtime( __FILE__ ) ) ? (string) $filemodtime : '1' );
 					$server_signature = md5( $server_signature_string );
 					
 					if ( ( false === isset( $aggregate_available_methods[ 'control' ][ 'signature' ] ) ) ||
@@ -502,7 +639,7 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					// Add the server signature for detecting invalidated methods details on a migration or some other change
 					// Note: See discussion above on derivation of signature
 					// TODO: Check, probably can use the server signature calculated above
-					$server_signature_string = php_uname() . " : " . ( ( $filemodtime = filemtime( __FILE__ ) ) ? (string) $filemodtime : '1' );
+					$server_signature_string = __FILE__ . " : " . ( ( $filemodtime = filemtime( __FILE__ ) ) ? (string) $filemodtime : '1' );
 					$server_signature = md5( $server_signature_string );
 					$aggregate_available_methods[ 'control' ][ 'signature' ] = $server_signature;
 					
@@ -970,29 +1107,22 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 			
 			pb_backupbuddy::status( 'details', __('Creating ZIP file','it-l10n-backupbuddy' ) . ' `' . $zip_file . '`. ' . __('Adding directory','it-l10n-backupbuddy' ) . ' `' . $add_directory . '`. ' . __('Excludes','it-l10n-backupbuddy' ) . ': ' . implode( ',', $excludes ) );
 			
-			// We'll try and allow exclusions for pclzip if we can
-			include_once( pb_backupbuddy::plugin_path() . '/lib/' . $this->_whereami . '/zbdir.php' );
-			if ( class_exists( 'pluginbuddy_zbdir' ) ) {
+			// We need the classes for being able to build backup file list
+			require_once( pb_backupbuddy::plugin_path() . '/lib/' . $this->_whereami . '/zbdir.php' );
+			if ( !class_exists( 'pluginbuddy_zbdir' ) ) {
 			
-				// Generate our sanitized list of directories/files to exclude as absolute paths (normalized) for zbdir
-				$sanitized_excludes = $this->sanitize_excludes( $excludes, $additional_excludes, $add_directory );
-
-				// Now let's create the list of items to add to the zip - first build the tree
-				$listmaker = new pluginbuddy_zbdir( $add_directory, $sanitized_excludes );
+				// Hmm, require_once() didn't bomb but we haven't got the class we expect - bail out
+				pb_backupbuddy::status( 'details', __('Unable to load classes for backup file list builder.','it-l10n-backupbuddy' ) );
 				
-				// Re-generate our sanitized list of directories/files to exclude as relative paths
-				// Slight kludge to deal with being able to enable/disable the inclusion processing
-				// (currently configured in wp-config.php) so always need to provide the excludes as
-				// relative path for now. This needs to be tidied up in future if/when the capability
-				// is established as standard
-				$sanitized_excludes = $this->sanitize_excludes( $excludes, $additional_excludes );				
+				return false;
 
-			} else {
-			
-				// Generate our sanitized list of directories/files to exclude as relative paths
-				$sanitized_excludes = $this->sanitize_excludes( $excludes, $additional_excludes );
-			
 			}
+			
+			// Generate our sanitized list of directories/files to exclude as relative paths
+			$sanitized_excludes = $this->sanitize_excludes( $excludes, $additional_excludes );
+			
+			// Do the same for directories/files to include
+			//$sanitized_includes = $this->sanitize_excludes( $includes, $additional_includes );
 			
 			// Iterate over the methods - once we succeed just return directly otherwise drop through
 			foreach ( $zip_methods as $method_tag ) {
@@ -1003,7 +1133,12 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					$class_name = 'pluginbuddy_zbzip' . $method_tag;
 		
 					$zipper = new $class_name( $this );
-					$zipper->set_status_callback( array( &$this, 'status' ) );
+					
+					// Set these on specific zipper based on the values we derived at construnction or
+					// overridden by subsequent method calls
+					$zipper->set_compression( $this->get_compression() );
+					$zipper->set_ignore_symlinks( $this->get_ignore_symlinks() );
+					$zipper->set_ignore_warnings( $this->get_ignore_warnings() );
 					
 					// We need to tell the method what details belong to it
 					$zipper->set_method_details( $this->_zip_methods_details[ $method_tag ] );
@@ -1028,7 +1163,7 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					}
 					
 					// Now we are ready to try and produce the backup
-					if ( $zipper->create( $zip_file, $add_directory, $sanitized_excludes, $temporary_zip_directory, $listmaker ) === true ) {
+					if ( $zipper->create( $zip_file, $add_directory, $sanitized_excludes, $temporary_zip_directory ) === true ) {
 					
 						// Got a valid zip file so we can just return - method will have cleaned up the temporary directory
 						pb_backupbuddy::status( 'details', __('The ', 'it-l10n-backupbuddy' ) . $method_tag . __(' method for ZIP was successful.','it-l10n-backupbuddy' ) );
@@ -1123,7 +1258,6 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					$class_name = 'pluginbuddy_zbzip' . $method_tag;
 		
 					$zipper = new $class_name( $this );
-					$zipper->set_status_callback( array( &$this, 'status' ) );
 					
 					// We need to tell the method what details belong to it
 					$zipper->set_method_details( $this->_zip_methods_details[ $method_tag ] );
@@ -1223,7 +1357,6 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					$class_name = 'pluginbuddy_zbzip' . $method_tag;
 		
 					$zipper = new $class_name( $this );
-					$zipper->set_status_callback( array( &$this, 'status' ) );
 					
 					// We need to tell the method what details belong to it
 					$zipper->set_method_details( $this->_zip_methods_details[ $method_tag ] );
@@ -1297,7 +1430,6 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					$class_name = 'pluginbuddy_zbzip' . $method_tag;
 		
 					$zipper = new $class_name( $this );
-					$zipper->set_status_callback( array( &$this, 'status' ) );
 					
 					// We need to tell the method what details belong to it
 					$zipper->set_method_details( $this->_zip_methods_details[ $method_tag ] );
@@ -1366,7 +1498,6 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					$class_name = 'pluginbuddy_zbzip' . $method_tag;
 		
 					$zipper = new $class_name( $this );
-					$zipper->set_status_callback( array( &$this, 'status' ) );
 					
 					// We need to tell the method what details belong to it
 					$zipper->set_method_details( $this->_zip_methods_details[ $method_tag ] );
@@ -1440,7 +1571,6 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					$class_name = 'pluginbuddy_zbzip' . $method_tag;
 					
 					$zipper = new $class_name( $this );
-					$zipper->set_status_callback( array( &$this, 'status' ) );
 					
 					// We need to tell the method what details belong to it
 					$zipper->set_method_details( $this->_zip_methods_details[ $method_tag ] );
@@ -1511,7 +1641,6 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 					$class_name = 'pluginbuddy_zbzip' . $method_tag;
 					
 					$zipper = new $class_name( $this );
-					$zipper->set_status_callback( array( &$this, 'status' ) );
 					
 					// We need to tell the method what details belong to it
 					$zipper->set_method_details( $this->_zip_methods_details[ $method_tag ] );
@@ -1614,49 +1743,6 @@ if ( !class_exists( "pluginbuddy_zipbuddy" ) ) {
 			}
 		}
 			
-		/**
-		 *	set_status_callback()
-		 *
-		 *	Sets a reference to the function to call for each status update.
-		 *  Argument must at least be a non-empty array with 2 elements
-		 *
-		 *	@param		array 	$callback	Object->method to call for status updates.
-		 *	@return		null
-		 *
-		 */
-		public function set_status_callback( $callback = array() ) {
-		
-			if ( is_array( $callback ) && !empty( $callback ) && ( 2 == count( $callback ) ) ) {
-			
-				$this->_status_callback = $callback;
-				$this->_have_status_callback = true;
-
-			}
-			
-		}
-		
-		/**
-		 *	status()
-		 *	
-		 *	Invoke status method of parent if it exists
-		 *  Must be at least one parameter otherwise ignore the call
-		 *	
-		 *	@param		string		(Expected) Status message type.
-		 *	@param		string		(Expected) Status message.
-		 *	@return		null
-		 *
-		 */
-		public function status() {
-		
-			if ( $this->_have_status_callback && ( func_num_args() > 0 ) ) {
-
-				$args = func_get_args();
-				call_user_func_array( $this->_status_callback, $args );
-				
-			}
-			
-		}
-	
 	} // End class
 	
 	//$pluginbuddy_zipbuddy = new pluginbuddy_zipbuddy( $this->_options['backup_directory'] );

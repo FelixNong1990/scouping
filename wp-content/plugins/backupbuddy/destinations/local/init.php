@@ -18,6 +18,7 @@ class pb_backupbuddy_destination_local { // Change class name end to match desti
 		'created_at'	=>		0,
 		'temporary'		=>		false,
 		'archive_limit'	=>		'0',
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 	);
 	
 	

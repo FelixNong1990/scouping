@@ -170,10 +170,10 @@ $settings_form->add_setting( array(
 	'name'		=>		'active_mode',
 	'title'		=>		__( 'Transfer mode', 'it-l10n-backupbuddy' ),
 	'options'	=>		array(
-								'1'		=>		__( 'Active (default)', 'it-l10n-backupbuddy' ),
-								'0'		=>		__( 'Passive', 'it-l10n-backupbuddy' ),
+								'1'		=>		__( 'Active', 'it-l10n-backupbuddy' ),
+								'0'		=>		__( 'Passive (default)', 'it-l10n-backupbuddy' ),
 							),
-	'tip'		=>		__('[Default: Active] - Determines whether the FTP file transfer happens in FTP active or passive mode.  Some servers or those behind a firewall may need to use PASV, or passive mode as a workaround.', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__('[Default: Passive] - Determines whether the FTP file transfer happens in FTP active or passive mode.  Some servers or those behind a firewall may need to use PASV, or passive mode as a workaround.', 'it-l10n-backupbuddy' ),
 	'rules'		=>		'required',
 ) );
 
@@ -184,6 +184,18 @@ $settings_form->add_setting( array(
 	'title'		=>		__( 'Use FTPs encryption', 'it-l10n-backupbuddy' ),
 	'tip'		=>		__( '[Default: disabled] - Select whether this connection is for FTP or FTPs (enabled; FTP over SSL). Note that FTPs is NOT the same as sFTP (FTP over SSH) and is not compatible or equal.', 'it-l10n-backupbuddy' ),
 	'css'		=>		'',
-	'after'		=>		'<span class="description"> ' . __( 'Enable high security mode (not supported by most servers)', 'it-l10n-backupbuddy' ) . '</span>',
+	'after'		=>		'<span class="description"> ' . __( 'Not supported by most servers', 'it-l10n-backupbuddy' ) . '</span>',
 	'rules'		=>		'required',
 ) );
+
+if ( $mode !== 'edit' ) {
+	$settings_form->add_setting( array(
+		'type'		=>		'checkbox',
+		'name'		=>		'disable_file_management',
+		'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+		'title'		=>		__( 'Disable file management', 'it-l10n-backupbuddy' ),
+		'tip'		=>		__( '[Default: unchecked] - When checked, selecting this destination disables browsing or accessing files stored at this destination from within BackupBuddy.', 'it-l10n-backupbuddy' ),
+		'css'		=>		'',
+		'rules'		=>		'',
+	) );
+}

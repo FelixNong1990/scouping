@@ -297,12 +297,17 @@ class pb_backupbuddy_form {
 	public function start() {
 		$this->_started = true;
 		
-		if ( pb_backupbuddy::page_url() != '' ) {
-			$action_url = pb_backupbuddy::page_url() . '&' . $this->_additional_query_string;
+		if ( false !== stristr( $this->_additional_query_string, 'http' ) ) {
+			$action_url = $this->_additional_query_string;
 		} else {
-			$action_url = '?' . $this->_additional_query_string;
+			
+			if ( pb_backupbuddy::page_url() != '' ) {
+				$action_url = pb_backupbuddy::page_url() . '&' . $this->_additional_query_string;
+			} else {
+				$action_url = '?' . $this->_additional_query_string;
+			}
+			
 		}
-		
 		
 		$return = '<form method="post" action="' . $action_url . '" class="pb_form" id="' . $this->_prefix . $this->_form_name . '_form">';
 		$return .= '<input type="hidden" name="' . $this->_prefix . '" value="' . $this->_form_name . '">';

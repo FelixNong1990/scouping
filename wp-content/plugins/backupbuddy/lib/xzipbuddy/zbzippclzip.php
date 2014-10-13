@@ -269,11 +269,7 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 		 *
 		 *	Callback function handler for after an element has been added.
 		 *	Only process the element if it has been added (header status is 'ok')
-		 *	Keep track of and log progress.
-		 *	Keep track of and log usage data - in particular the user space time used
-		 *	which relates to what is counted against execution time.
-		 *	Optionally handle multi-burst processing by an execution time reset.
-		 *	Optionally handle server tickling by dummy flush to server.
+		 *	Invoke periodic functions for usage minitoring, etc.
 		 *
 		 *	@param		reference	&$header	The element header array
 		 *	@return		bool					True always	
@@ -281,126 +277,47 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 		 */
 		private function element_added( &$header ) {
 		
-			$usage_data = array();
-			$current_log_period = 0;
-			$current_burst_period = 0;
-			$current_tickle_period = 0;
-			$reported = false;
 			$result = true;
-		
+			
 			// Only if the dir/file was added ok
 			if ( 'ok' === $header[ 'status' ] ) {
 			
-				// Always logging progress
 				// Increment the appropriate count and decide if we need to log progress
 				( true === $header[ 'folder' ] ) ? $this->incr_added_dir_count() : $this->incr_added_file_count() ;
-				if ( 0 === ( ( $this->get_added_file_count() + $this->get_added_dir_count() ) % 100 ) ) {
-				
-					pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s/%2$s (directories/files) added to backup zip archive','it-l10n-backupbuddy' ), $this->get_added_dir_count(), $this->get_added_file_count() ) );
-				
-				}
-				
-				// Would expect to log except on Windows which doesn't support getrusage()
-				if ( true === $this->is_logging_usage() ) {
-				
-					// Decide if we need to log usage data
-					$current_log_period = ( time() - $this->get_log_start_time() );
-					if ( $this->get_log_threshold_period() < $current_log_period ) {
-				
-						if ( false === $reported ) {
-					
-							// Log where we are at and connection status for information
-							pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s/%2$s (directories/files) added to backup zip archive','it-l10n-backupbuddy' ), $this->get_added_dir_count(), $this->get_added_file_count() ) );
-							pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: Connection status: %1$s (%2$s)','it-l10n-backupbuddy' ), $this->connection_status_tostring( connection_status() ), connection_status() ) );
-							$reported = true;
-						
-						}
-					
-						// Get some usage data from the server (check that function available) and log it
-						$usage_data = getrusage();
-					
-						// Determine the total user space time since we initialized the logging (relative)
-						$this->_elapsed_user_time = ( $usage_data[ 'ru_utime.tv_sec' ] - $this->_start_user_time );
-						pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: Usage data (raw/relative): ( %1$s, %2$s, %3$s, %4$s, %5$s )/( -, %6$s, -, -, - )','it-l10n-backupbuddy' ), $usage_data[ 'ru_stime.tv_sec' ], $usage_data[ 'ru_utime.tv_sec' ], $usage_data[ 'ru_majflt' ], $usage_data[ 'ru_nvcsw' ], $usage_data[ 'ru_nivcsw' ], $this->_elapsed_user_time ) );
-
-						// Reset the logging period start time
-						$this->set_log_start_time( time() );
-
-					}
-				
-				}
-				
-				// Only bother with burst handling if multi-burst mode selected
-				if ( true === $this->is_multi_burst() ) {
-				
-					// Decide if we have been running long enough to need to reset time limit
-					$current_burst_period = ( time() - $this->get_burst_start_time() );
-					if ( $this->get_burst_threshold_period() < $current_burst_period ) {
-				
-						if ( false === $reported ) {
-						
-							// Log where we are at and connection status for information
-							pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s/%2$s (directories/files) added to backup zip archive','it-l10n-backupbuddy' ), $this->get_added_dir_count(), $this->get_added_file_count() ) );
-							pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: Connection status: %1$s (%2$s)','it-l10n-backupbuddy' ), $this->connection_status_tostring( connection_status() ), connection_status() ) );
-							$reported = true;
-							
-						}
-					
-						// Log how long the burst ran for and then reset the burst start time and max period
-						pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s seconds elapsed - resetting timebase to %2$s seconds','it-l10n-backupbuddy' ), $current_burst_period, $this->get_burst_max_period() ) );
-
-						// Reset the burst period start time
-						$this->set_burst_start_time( time() );
-					
-						// Reset the execution time timer (if the server honours this)
-						@set_time_limit( $this->get_burst_max_period() );
-						// Maybe use ini_set() if set_time_limit() were to be disabled (test that on object creation)
-						//@ini_set( 'max_execution_time', 30 );
-					
-					}
-				
-				}
 			
-				// Only bother with server tickling if it is selected
-				if ( true === $this->is_server_tickling() ) {
-				
-					// Decide if we have been running long enough to need to tickle the server
-					$current_tickle_period = ( time() - $this->get_tickle_start_time() );
-					if ( $this->get_tickle_threshold_period() < $current_tickle_period ) {
-				
-						if ( false === $reported ) {
-						
-							// Log where we are at and connection status for information
-							pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s/%2$s (directories/files) added to backup zip archive','it-l10n-backupbuddy' ), $this->get_added_dir_count(), $this->get_added_file_count() ) );
-							pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: Connection status: %1$s (%2$s)','it-l10n-backupbuddy' ), $this->connection_status_tostring( connection_status() ), connection_status() ) );
-							$reported = true;
-							
-						}
-					
-						// Log how long since we last tickled and indicate tickling
-						pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s seconds elapsed - tickling server','it-l10n-backupbuddy' ), $current_tickle_period ) );
-						$this->set_tickle_start_time( time() );
-					
-						// Output the tickler to give something to flush
-						echo $this->get_server_tickler();
-					
-						// Force flushing and end of buffering
-						// Possibly should need to do this because nothing should have started buffering
-						// should it? It's possible that PHP config could have enabled one level of buffering
-						// so at least handle that with the method as exemplified in the PHP manual. Also do
-						// a staright flush as that should cause a flush at least to the server which is
-						// actually all we want in this particular case.
-						while ( @ob_end_flush() );
-						flush();
-
-					}
-				
-				}
+				// Keep up with what's happening
+				$this->monitor_activity();
 			
 			}
 			
 			// Just return based on whether what we tried to do worked or not
 			return $result;
+		
+		}
+		
+		/**
+		 * 
+		 *	monitor_activity()
+		 *
+		 *	Keep track of and log progress.
+		 *	Keep track of and log usage data - in particular the user space time used
+		 *	which relates to what is counted against execution time.
+		 *	Optionally handle multi-burst processing by an execution time reset.
+		 *	Optionally handle server tickling by dummy flush to server.
+		 *
+		 *	@return		none
+		 *
+		 */
+		public function monitor_activity() {
+		
+			// Used to make sure we do not report items multiple times
+			// Bit of a kludge for now
+			$this->_reported = false;
+		
+			$this->monitor_progress();
+			$this->monitor_usage();
+			$this->handle_burst_mode();
+			$this->tickle_server();
 		
 		}
 	
@@ -673,14 +590,12 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 		 *	
 		 *	A function that creates an archive file
 		 *	
-		 *	The $excludes will be a list or relative path excludes if the $listmaker object is NULL otehrwise
-		 *	will be absolute path excludes and relative path excludes can be had from the $listmaker object
+		 *	The $excludes will be a list or relative path excludes
 		 *	
 		 *	@param		string	$zip			Full path & filename of ZIP Archive file to create
 		 *	@param		string	$dir			Full path of directory to add to ZIP Archive file
 		 *	@parame		array	$excludes		List of either absolute path exclusions or relative exclusions
 		 *	@param		string	$tempdir		Full path of directory for temporary usage
-		 *	@param		object	$listmaker		The object from which we can get an inclusions list
 		 *	@return		bool					True if the creation was successful, false otherwise
 		 *
 		 */
@@ -688,7 +603,7 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 		
 			$za = NULL;
 			$result = false;
-			$exitcode = 0;
+			$exitcode = 255;
 			$zip_output = array();
 			$temp_zip = '';
 			$excluding_additional = false;
@@ -713,7 +628,13 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 			$zip_other = array();
 			$zip_ignoring_symlinks = false;
 			$symlinks_found = array();
-			$zip_helper = NULL;
+			$zh = NULL;
+
+			$lister = NULL;
+			$visitor = NULL;
+			$total_size = 0;
+			$the_list = array();
+			$saved_ignored_symdirs = array();
 			
 			// The basedir must have a trailing normalized directory separator
 			$basedir = ( rtrim( trim( $dir ), self::DIRECTORY_SEPARATORS ) ) . self::NORM_DIRECTORY_SEPARATOR;
@@ -724,6 +645,11 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 			// Ensure no stale file information
 			clearstatcache();
 			
+			// Create the helper function here so we can use it outside of the post-add
+			// function. Using all defaults so includes multi-burst and server tickling
+			// for now but with options we can modify this.				
+			$zh = new pb_backupbuddy_pclzip_helper();
+				
 			// Note: could enforce trailing directory separator for robustness
 			if ( empty( $tempdir ) || !file_exists( $tempdir ) ) {
 			
@@ -736,84 +662,171 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 			pb_backupbuddy::status( 'message', __('Using Compatibility Mode.','it-l10n-backupbuddy' ) );
 			pb_backupbuddy::status( 'message', __('If your backup times out in Compatibility Mode try disabling zip compression in Settings.','it-l10n-backupbuddy' ) );
 			
-			// Update the definition before it is used by loading the library
-			// This will not wok if perchance the file has already been loaded :-(
+			// Check if pclzip temporary directory is already defined - if it is and
+			// PclZip has already been loaded then this may caue a problem with where
+			// temporary files are created
+			if ( defined( 'PCLZIP_TEMPORARY_DIR' ) ) {
+			
+				pb_backupbuddy::status( 'details', __('PCLZIP_TEMPORARY_DIR already defined - may cause problems if PclZip library already loaded by another plugin','it-l10n-backupbuddy' ) . ': ' . PCLZIP_TEMPORARY_DIR );
+			
+			}
+			
+			// Define in any case so that it is used if possible
 			define( 'PCLZIP_TEMPORARY_DIR', $tempdir );
 			
-			// Decide whether we are offering exclusions or not
-			// Note that unlike proc and zip we always use inclusion if available to offer exclusion capability for pclzip
-			if ( is_object( $listmaker ) ) {
+			// Let's inform what we are excluding/including
+			if ( count( $excludes ) > 0 ) {
+			
+				pb_backupbuddy::status( 'details', __('Calculating directories/files to exclude from backup (relative to site root).','it-l10n-backupbuddy' ) );
 				
-				// Need to get the relative exclusions so we can log what is being excluded...
-				$exclusions = $listmaker->get_relative_excludes( $basedir );
+				foreach ( $excludes as $exclude ) {
 				
-				// Build the exclusion list - first the relative directories
-				if ( count( $exclusions ) > 0 ) {
-				
-					pb_backupbuddy::status( 'details', __('Calculating directories/files to exclude from backup (relative to site root).','it-l10n-backupbuddy' ) );
-					
-					foreach ( $exclusions as $exclude ) {
-					
-						if ( !strstr( $exclude, 'backupbuddy_backups' ) ) {
-	
-							// Set variable to show we are excluding additional directories besides backup dir.
-							$excluding_additional = true;
-								
-						}
-							
-						pb_backupbuddy::status( 'details', __('Excluding','it-l10n-backupbuddy' ) . ': ' . $exclude );
-						
-						$exclude_count++;
+					if ( !strstr( $exclude, 'backupbuddy_backups' ) ) {
+
+						// Set variable to show we are excluding additional directories besides backup dir.
+						$excluding_additional = true;
 							
 					}
+						
+					pb_backupbuddy::status( 'details', __('Excluding','it-l10n-backupbuddy' ) . ': ' . $exclude );
 					
+					$exclude_count++;
+						
 				}
 				
+			}
+			
+			if ( true === $excluding_additional ) {
+			
+				pb_backupbuddy::status( 'message', __( 'Excluding archives directory and additional directories defined in settings.','it-l10n-backupbuddy' ) . ' ' . $exclude_count . ' ' . __( 'total','it-l10n-backupbuddy' ) . '.' );
 				
-				if ( true === $excluding_additional ) {
+			} else {
+			
+				pb_backupbuddy::status( 'message', __( 'Only excluding archives directory based on settings.','it-l10n-backupbuddy' ) . ' ' . $exclude_count . ' ' . __( 'total','it-l10n-backupbuddy' ) . '.' );
 				
-					pb_backupbuddy::status( 'message', __( 'Excluding archives directory and additional directories defined in settings.','it-l10n-backupbuddy' ) . ' ' . $exclude_count . ' ' . __( 'total','it-l10n-backupbuddy' ) . '.' );
+			}
+
+
+			pb_backupbuddy::status( 'message', __( 'Zip process reported: Determining list of file + directories to be added to the zip archive','it-l10n-backupbuddy' ) );
+
+			// Now let's create the list of files and empty (vacant) directories to include in the backup.
+			// Note: we can only include vacant directories (those that had no content in the first place).
+			// An empty directory may have had content that was excluded but if we give this directory to
+			// pclzip it automatically recurses down into it (we have no control over that) which would then
+			// mess up the exclusions.
+			
+			$visitor = new pluginbuddy_zbdir_visitor_details( array( 'filename', 'directory', 'vacant', 'absolute_path', 'size' ) );
+			
+			$options = array( 'exclusions' => $excludes,
+							  'pattern_exclusions' => array(),
+							  'inclusions' => array(),
+							  'pattern_inclusions' => array(),
+							  'keep_tree' => false,
+							  'ignore_symlinks' => $this->get_ignore_symlinks(),
+							  'visitor' => $visitor );
+			
+			try {
+			
+				$lister = new pluginbuddy_zbdir( $basedir, $options );
+
+				// As we are not keeping the tree we haev already done the visitor pass
+				// as the tree was built so our visitor contains all the information we
+				// need so we can destroy the lister object
+				unset( $lister );
+				$result = true;
+				
+				pb_backupbuddy::status( 'message', __( 'Zip process reported: Determined list of file + directories to be added to the zip archive','it-l10n-backupbuddy' ) );
+
+			} catch (Exception $e) {
+			
+				// We couldn't build the list as required so need to bail
+				$error_string = $e->getMessage();
+				pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: Unable to determine list of files + directories for backup - error reported: %1$s','it-l10n-backupbuddy' ), $error_string ) );
+
+				// TODO: Should do some cleanup of any temporary directory, visitor, etc. but not for now
+				$result = false;
+			}
+
+			// In case that took a while use the helper to try and keep the process alive
+			// Calling monitor_activity() here
+			$zh->monitor_activity();
+
+			if ( true === $result ) {	
 					
-				} else {
+				// Now we have our flat file/directory list from the visitor - remember we didn't
+				// keep the tree as we shouldn't need it for anything else as we can get all we need
+				// from the visitor. First create our list. We have to do this first because we need to
+				// know if we are bypassing ignored symdirs (not including them in the list) so we can
+				// add the number of these to the total number of items from our simple (vacant) directory
+				// and file count total so that the final stats of what was actually added and the details
+				// of what we didn't add will all add up - sounds convoluted, well that's because it is...
+				$backup_list = $visitor->get_as_array( array( 'filename', 'directory', 'vacant', 'absolute_path', 'size' ) );
+				foreach ( $backup_list as $backup_item ) {
+					if ( false === $backup_item[ 'directory' ] ) {
+						// Not a directory so must be a file (whether symlink or not) so always ass
+						$the_list[] = $backup_item[ 'absolute_path' ] . $backup_item[ 'filename' ];
+					} elseif ( ( true === $backup_item[ 'directory' ] ) && ( isset( $backup_item[ 'vacant' ] ) && ( true === $backup_item[ 'vacant' ] ) ) ) {
+						// It's a directory and has the vacant attribute and it is vacant so we can
+						// safely add it.
+						// We cannot add non-vacant directories because pclzip will recurse into them.
+						// If the directory does not have the vacant attribute that is because it is
+						// a symlink dir that wasn't followed so we neither know whether it is vacant
+						// not empty and so we cannot risk adding it in case it is not empty
+						$the_list[] = $backup_item[ 'absolute_path' ] . $backup_item[ 'filename' ];
+					} elseif ( ( true === $backup_item[ 'directory' ] ) && !( isset( $backup_item[ 'vacant' ] ) ) ) {
+						// It's s directory but vacant attribute isn't set then must be an ignored
+						// symlink directory so we'll remember it so we can add it as an informational
+						// at the end of the process
+						$saved_ignored_symdirs[] = $backup_item[ 'absolute_path' ] . $backup_item[ 'filename' ];
+					}
+				}
+
+				pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s (directories + files) will be requested to be added to backup zip archive','it-l10n-backupbuddy' ), ( count( $the_list) + count( $saved_ignored_symdirs ) ) ) );
+				//$zh->set_options( array( 'directory_count' => ( $visitor->count( 'directory' => true, 'vacant' => true ) + count( $saved_ignored_symdirs ), 'file_count' => $visitor->count( array( 'directory' => false ) ) ) );
 				
-					pb_backupbuddy::status( 'message', __( 'Only excluding archives directory based on settings.','it-l10n-backupbuddy' ) . ' ' . $exclude_count . ' ' . __( 'total','it-l10n-backupbuddy' ) . '.' );
-					
+				$total_size = 0;
+				foreach ( $backup_list as $backup_item ) {
+					if ( false === $backup_item[ 'directory' ] ) {
+						$total_size += (int)$backup_item[ 'size' ];
+					}
 				}
 				
-				// Now get the list from the top node
-				$the_list = $listmaker->get_terminals();
+				// We don't need the backup list array any more
+				unset( $backup_list );
 				
+				pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s bytes will be requested to be added to backup zip archive','it-l10n-backupbuddy' ), $total_size ) );
+				//$zh->set_options( array( 'content_size' => $total_size ) );
+
 				// Retain this for reference for now
 				//file_put_contents( ( dirname( $tempdir ) . DIRECTORY_SEPARATOR . self::ZIP_CONTENT_FILE_NAME ), print_r( $the_list, true ) );
 			
-			} else {
+				// Presently we don't need the visitor any longer so we can free up some
+				// memory by deleting
+				unset( $visitor );
 		
-				// We don't have the inclusion list so we are not offering exclusions
-				pb_backupbuddy::status( 'message', __('WARNING: Directory/file exclusion unavailable in Compatibility Mode. Even existing old backups will be backed up.','it-l10n-backupbuddy' ) );
-				$the_list = array( $dir );
+				// Get started with out zip object
+				// Put our final zip file in the temporary directory - it will be moved later
+				$temp_zip = $tempdir . basename( $zip );
 			
-			}
-		
-			// Get started with out zip object
-			// Put our final zip file in the temporary directory - it will be moved later
-			$temp_zip = $tempdir . basename( $zip );
-			
-			// This should give us a new archive object, of not catch it and bail out
-			try {
+				// This should give us a new archive object, of not catch it and bail out
+				try {
 					
-				$za = new pluginbuddy_PclZip( $temp_zip );
-				$result = true;
+					$za = new pluginbuddy_PclZip( $temp_zip );
+					$result = true;
 				
-			} catch ( Exception $e ) {
+				} catch ( Exception $e ) {
 			
-				// Something fishy - the methods indicated pclzip but we couldn't find the class
-				$error_string = $e->getMessage();
-				pb_backupbuddy::status( 'details', sprintf( __('pclzip indicated as available method but error reported: %1$s','it-l10n-backupbuddy' ), $error_string ) );
-				$result = false;
+					// Something fishy - the methods indicated pclzip but we couldn't find the class
+					$error_string = $e->getMessage();
+					pb_backupbuddy::status( 'details', sprintf( __('pclzip indicated as available method but error reported: %1$s','it-l10n-backupbuddy' ), $error_string ) );
+					$result = false;
+				
+				}
 				
 			}
 			
-			// Only continue if we have a valid archive object
+			// Only continue if we have a valid list and archive object
+			// This isn't ideal at present but will suffice
 			if ( true === $result ) {
 			
 				// Basic argument list
@@ -955,22 +968,18 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 		
 				}
 				
-				// Add a post-add function for progress logging, usage data logging,
-				// burst handling and server tickling
+				// Add a post-add function for progress monitoring, usage data monitoring,
+				// burst handling and server tickling - using the zip helper object
+				// we created earlier
 				$post_add_func = '';
-				
-				// Create the helper function here so we can use it outside of the post-add
-				// function. Using all defaults so includes multi-burst and server tickling
-				// for now but with options we can modify this.				
-				$zip_helper = new pb_backupbuddy_pclzip_helper();
-				
+								
 				if (true) {
 				
 					$args = '$event, &$header';
 					$code = '';
 					$code .= '$result = true; ';
-					$code .= '$zip_helper = pb_backupbuddy_pclzip_helper::get_instance();';
-					$code .= '$result = $zip_helper->event_handler( $event, $header );';
+					$code .= '$zh = pb_backupbuddy_pclzip_helper::get_instance();';
+					$code .= '$result = $zh->event_handler( $event, $header );';
 					$code .= 'return $result;';
 				
 					$post_add_func = create_function( $args, $code );
@@ -1004,7 +1013,7 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 				pb_backupbuddy::status( 'details', $this->get_method_tag() . __( ' command arguments','it-l10n-backupbuddy' ) . ': ' . implode( ';', $imploded_arguments ) );
 				
 				// Do this as close to when we actually want to start monitoring usage
-				$zip_helper->initialize_logging_usage();
+				$zh->initialize_monitoring_usage();
 				
 				$output = call_user_func_array( array( &$za, 'create' ), $arguments );
 				
@@ -1015,7 +1024,7 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 					$exitcode = 0;
 
 					// We can report how many dirs/files added according to pclzip					
-					pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s/%2$s (directories/files) added to backup zip archive (final)','it-l10n-backupbuddy' ), $zip_helper->get_added_dir_count(), $zip_helper->get_added_file_count() ) );
+					pb_backupbuddy::status( 'details', sprintf( __('Zip process reported: %1$s (directories + files) added to backup zip archive (final)','it-l10n-backupbuddy' ), ( $zh->get_added_dir_count() + $zh->get_added_file_count() ) ) );
 
 					// Process the array for any "warnings" or other reportable conditions
 					$id = 0; // Create a unique key (like a line number) for later sorting
@@ -1067,6 +1076,18 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 								// Currently not processing "ok" entries
 								$id++;
 						}
+					
+					}
+					
+					// Now also add in INFORMATIONALs for any ignored symdirs because these would not have
+					// been included in the build list. They were not included because pclzip would have attempted
+					// to follow them and then we would have had to "filter" them and all entries that pclzip
+					// would have created under them which is just a wster of time - best to not include at all
+					// at tell the user now that we didnt include them
+					foreach ( $saved_ignored_symdirs as $ignored_symdir ) {
+					
+						$zip_other[ self::ZIP_OTHER_IGNORED_SYMLINK ][ $id++ ] = $ignored_symdir;
+						$zip_other_count++;					
 					
 					}
 					
@@ -1175,10 +1196,10 @@ if ( !class_exists( "pluginbuddy_zbzippclzip" ) ) {
 						pb_backupbuddy::status( 'details', __('Zip Archive file moved to local archive directory.','it-l10n-backupbuddy' ) );
 						pb_backupbuddy::status( 'message', __( 'Zip Archive file successfully created with no errors (any actionable warnings ignored by user settings).','it-l10n-backupbuddy' ) );
 						
-						$this->log_archive_file_stats( $zip );
+						$this->log_archive_file_stats( $zip, array( 'content_size' => $total_size ) );
 						
 						// Temporary for now - try and incorporate into stats logging (makes the stats logging function part of the zip helper class?)
-						pb_backupbuddy::status( 'details', sprintf( __('Zip Archive file size: %1$s/%2$s (directories/files) added','it-l10n-backupbuddy' ), $zip_helper->get_added_dir_count(), $zip_helper->get_added_file_count() ) );
+						pb_backupbuddy::status( 'details', sprintf( __('Zip Archive file size: %1$s (directories + files) actually added','it-l10n-backupbuddy' ), ( $zh->get_added_dir_count() + $zh->get_added_file_count() ) ) );
 					
 						$result = true;
 						

@@ -182,20 +182,6 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 		protected $_executable_paths = array();
 		
         /**
-         * Whether or not we can call a status calback
-         * 
-         * @var have_status_callback bool
-         */
-		protected $_have_status_callback = false;
-		
-        /**
-         * Object->method array for status function
-         * 
-         * @var status_callback array
-         */
-		protected $_status_callback = array();
-		
-        /**
          * Array of status information
          * 
          * @var status array
@@ -278,13 +264,13 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 			// Make sure we know what we are running on for later
 			$this->set_os_type();
 			
-			// Derive whether we are ignoring Warnings or not
+			// Derive whether we are ignoring Warnings or not (expected to be overridden by user)
 			$this->set_ignore_warnings();
 			
-			// Derive whether we are ignoring/not-following symlinks or not
+			// Derive whether we are ignoring/not-following symlinks or not (expected to be overridden by user)
 			$this->set_ignore_symlinks();
 			
-			// Derive whether compression should be used
+			// Derive whether compression should be used (expected to be overridden by user)
 			$this->set_compression();
 			
 			// Specific method constructor will override some of these and the tests may override others
@@ -365,6 +351,8 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 		 	
 		 	}
 		 	
+		 	return $this;
+		 	
 		 }
 
 		/**
@@ -406,7 +394,7 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 		 
 		 	$this->_exec_dir_set = $result;
 
-			return $result;
+			return $this;
 
 		 }
 
@@ -430,27 +418,15 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 		 *	Checks conditions to see if warnings should be ignored when archives are
 		 *	being built.
 		 *
-		 *	@param		bool	$ignore	False (default) to let conditions decide, True to force ignore
-		 *	@return		bool			True if conditions indicate warnings should be ignored
+		 *	@param		bool	$ignore	False to not ignore warnings, True to force ignore
+		 *	@return		bool			True if conditions indicate warnings should be ignored, false otherwise
 		 *
 		 */
-		 public function set_ignore_warnings( $ignore = false ) {
+		 public function set_ignore_warnings( $ignore = null ) {
 		 
-		 	$result = false;
+		 	$this->_ignore_warnings = ( is_bool( $ignore ) ) ? $ignore : false ;
 
-		 	if ( ( true === $ignore ) || ( isset( pb_backupbuddy::$options[ 'ignore_zip_warnings' ] ) && ( pb_backupbuddy::$options[ 'ignore_zip_warnings' ] == '1' ) ) ) {
-		 	
-		 		$result = true;
-		 	
-		 	} else {
-		 	
-		 		$result = false;
-		 		
-		 	}
-		 
-		 	$this->_ignore_warnings = $result;
-
-			return $result;
+			return $this;
 
 		 }
 
@@ -474,27 +450,15 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 		 *	Checks conditions to see if symlinks should be ignored/not-followed when archives are
 		 *	being built.
 		 *
-		 *	@param		bool	$ignore	False (default) to let conditions decide, True to force ignore
-		 *	@return		bool			True if conditions indicate symlinks should be ignored/not-followed
+		 *	@param		bool	$ignore	False to not ignore symlinks, True to force ignore
+		 *	@return		bool			True if conditions indicate symlinks should be ignored/not-followed, false otherwise
 		 *
 		 */
-		 public function set_ignore_symlinks( $ignore = false ) {
+		 public function set_ignore_symlinks( $ignore = null ) {
 		 
-		 	$result = false;
+		 	$this->_ignore_symlinks =  ( is_bool( $ignore ) ) ? $ignore : true ;
 
-		 	if ( ( true === $ignore ) || ( isset( pb_backupbuddy::$options[ 'ignore_zip_symlinks' ] ) && ( pb_backupbuddy::$options[ 'ignore_zip_symlinks' ] == '1' ) ) ) {
-		 	
-		 		$result = true;
-		 	
-		 	} else {
-		 	
-		 		$result = false;
-		 		
-		 	}
-		 
-		 	$this->_ignore_symlinks = $result;
-
-			return $result;
+			return $this;
 
 		 }
 
@@ -516,29 +480,17 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 		/**
 		 *	set_compression()
 		 *
-		 *	Checks conditions to see if compression should be used when building archive
+		 *	Checks conditions to see if compression should be used when building archive.
 		 *
-		 *	@param		bool	$compression	False (default) to let conditions decide, True to force compression
-		 *	@return		bool					True if conditions indicate compression should be used
+		 *	@param		bool	$compression	False to prohibit compression, True to force compression
+		 *	@return		bool					True if conditions indicate compression should be used, false otherwise
 		 *
 		 */
-		 public function set_compression( $compression = false ) {
+		 public function set_compression( $compression = null ) {
 		 
-		 	$result = false;
+		 	$this->_compression =  ( is_bool( $compression ) ) ? $compression : true ;
 
-		 	if ( ( true === $compression ) || ( isset( pb_backupbuddy::$options[ 'compression' ] ) && ( pb_backupbuddy::$options[ 'compression' ] == '1' ) ) ) {
-		 	
-		 		$result = true;
-		 	
-		 	} else {
-		 	
-		 		$result = false;
-		 		
-		 	}
-		 
-		 	$this->_compression = $result;
-
-			return $result;
+			return $this;
 
 		 }
 
@@ -582,27 +534,6 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 		public function get_sapi_name() {
 			
 			return $this->_sapi_name;
-			
-		}
-
-		/**
-		 *	set_status_callback()
-		 *
-		 *	Sets a reference to the function to call for each status update.
-		 *  Argument must at least be a non-empty array with 2 elements
-		 *
-		 *	@param		array 	$callback	Object->method to call for status updates.
-		 *	@return		null
-		 *
-		 */
-		public function set_status_callback( $callback = array() ) {
-		
-			if ( is_array( $callback ) && !empty( $callback ) && ( 2 == count( $callback ) ) ) {
-			
-				$this->_status_callback = $callback;
-				$this->_have_status_callback = true;
-
-			}
 			
 		}
 
@@ -698,6 +629,8 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 				$this->_method_details = $details;
 			
 			}
+			
+			return $this;
 						
 		}
 
@@ -745,6 +678,8 @@ if ( !class_exists( "pluginbuddy_zbzipcore" ) ) {
 				$this->_executable_paths = $paths;
 			
 			}
+			
+			return $this;
 						
 		}
 

@@ -3,16 +3,17 @@
 // Incoming variables: $destination
 
 
-pb_backupbuddy::$ui->title( 'Dropbox destination "' . htmlentities( $destination['title'] ) . '"' );
+//pb_backupbuddy::$ui->title( 'Dropbox destination "' . htmlentities( $destination['title'] ) . '"' );
 
 
 
 // Copy remote file down to local.
-if ( '' != pb_backupbuddy::_GET( 'copy' ) ) {
+if ( '' != pb_backupbuddy::_GET( 'cpy' ) ) {
 	// Copy dropbox backups to the local backup files
-	pb_backupbuddy::alert( sprintf( _x('The remote file is now being copied to your %1$slocal backups%2$s', '%1$s and %2$s are open and close <a> tags', 'it-l10n-backupbuddy' ), '<a href="' . pb_backupbuddy::page_url() . '">', '</a>. If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.' ) );
+	pb_backupbuddy::alert( 'The remote file is now being copied to your local backups. If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.' );
+	echo '<br>';
 	pb_backupbuddy::status( 'details',  'Scheduling Cron for creating Dropbox copy.' );
-	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_destination_copy' ), array( $destination, pb_backupbuddy::_GET( 'copy' ) ) );
+	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_destination_copy' ), array( $destination, pb_backupbuddy::_GET( 'cpy' ) ) );
 	spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 	update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 }
@@ -29,7 +30,7 @@ if ( 'delete_backup' == pb_backupbuddy::_POST( 'bulk_action' ) ) {
 		} else {
 			pb_backupbuddy::alert( __( 'Unable to delete one or more files. Details: ', 'it-l10n-backupbuddy' ) . $result );
 		}
-		
+		echo '<br>';
 	}
 }
 
@@ -95,16 +96,16 @@ function pb_backupbuddy_aasort (&$array, $key) {
 pb_backupbuddy_aasort( $backup_files, 'file_timestamp' ); // Sort by multidimensional array with key start_timestamp.
 $backup_files = array_reverse( $backup_files ); // Reverse array order to show newest first.
 
+$urlPrefix = pb_backupbuddy::ajax_url( 'remoteClient' ) . '&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) );
 
 // Render table listing files.
 if ( count( $backup_files ) == 0 ) {
 	echo '<b>' . __( 'You have not completed sending any backups to this destination yet.', 'it-l10n-backupbuddy' ) . '</b>';
 } else {
-	$page_query = 'custom=remoteclient&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) );
 	pb_backupbuddy::$ui->list_table(
 		$backup_files,
 		array(
-			'action'					=>	pb_backupbuddy::page_url() . '&' . $page_query,
+			'action'					=>	$urlPrefix,
 			'columns'					=>	array(
 												'Backup File',
 												'Uploaded <img src="' . pb_backupbuddy::plugin_url() . '/images/sort_down.png" style="vertical-align: 0px;" title="Sorted most recent first">',
@@ -112,7 +113,7 @@ if ( count( $backup_files ) == 0 ) {
 												'Type'
 											),
 			'hover_actions'				=>	array(
-												$page_query . '&copy' => 'Copy to Local',
+												$urlPrefix . '&cpy=' => 'Copy to Local',
 											),
 			'hover_action_column_key'	=>	'0',
 			'bulk_actions'				=>	array(

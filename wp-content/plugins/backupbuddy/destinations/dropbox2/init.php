@@ -5,7 +5,7 @@ class pb_backupbuddy_destination_dropbox2 { // Ends with destination slug.
 	
 	public static $destination_info = array(
 		'name'			=>		'Dropbox v2 <small>(new)</small>',
-		'description'	=>		'Dropbox.com support for servers running PHP v5.3 or newer. Supports multipark chunked uploads for larger file support, improved memory handling, and reliability.',
+		'description'	=>		'Dropbox.com support for servers running PHP v5.3 or newer. Supports multipart chunked uploads for larger file support, improved memory handling, and reliability.',
 	);
 	
 	// Default settings. Should be public static for auto-merging.
@@ -17,6 +17,7 @@ class pb_backupbuddy_destination_dropbox2 { // Ends with destination slug.
 		'directory'					=>		'backupbuddy',			// Remote Dropbox directory to store into.
 		'archive_limit'				=>		0,						// Max number of archives allowed in destination directory.
 		'max_chunk_size'			=>		'0',					// Maximum chunk size in MB. Anything larger will be chunked up into pieces this size (or less for last piece). This allows larger files to be sent than would otherwise be possible. Minimum of 5mb allowed by S3.
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 		// Instance variables for transfer-specific settings such as multipart/chunking.
 		'_chunk_upload_id'			=>		'',						// Instance var. Internal use only for continuing a chunked upload.
 		'_chunk_offset'				=>		'',						// Instance var. Internal use only for continuing a chunked upload.
@@ -86,7 +87,7 @@ class pb_backupbuddy_destination_dropbox2 { // Ends with destination slug.
 	 *	Send one or more files.
 	 *	
 	 *	@param		array			$files		Array of one or more files to send.
-	 *	@return		boolean						True on success, else false.
+	 *	@return		boolean						True on success single-process, array on multipart with remaining steps, else false (failed).
 	 */
 	public static function send( $settings = array(), $files = array(), $send_id = '' ) {
 		
@@ -159,7 +160,7 @@ class pb_backupbuddy_destination_dropbox2 { // Ends with destination slug.
 				try {
 					$result = self::$_dbxClient->chunkedUploadContinue( $settings['_chunk_upload_id'], $settings['_chunk_next_offset'], $data );
 				} catch ( \Exception $e ) {
-					pb_backupbuddy::status( 'error', 'Dropbox Error #8754646: ' . $e->getMessage() );
+					pb_backupbuddy::status( 'error', 'Dropbox Error #8263836: ' . $e->getMessage() );
 					return false;
 				}
 				
@@ -225,7 +226,13 @@ class pb_backupbuddy_destination_dropbox2 { // Ends with destination slug.
 			// Schedule to continue if anything is left to upload for this multipart of any individual files.
 			if ( ( $chunked_destination_settings['_chunk_upload_id'] != '' ) || ( count( $files ) > 0 ) ) {
 				pb_backupbuddy::status( 'details', 'Dropbox multipart upload has more parts left. Scheduling next part send.' );
-				$schedule_result = backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'destination_send' ), array( $chunked_destination_settings, $files, $send_id ) );
+				
+				$cronTime = time();
+				$cronArgs = array( $chunked_destination_settings, $files, $send_id, false );
+				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
+				$cronArgs[] = $cronHashID;
+				
+				$schedule_result = backupbuddy_core::schedule_single_event( $cronTime, pb_backupbuddy::cron_tag( 'destination_send' ), $cronTags );
 				if ( true === $schedule_result ) {
 					pb_backupbuddy::status( 'details', 'Next Dropbox chunk step cron event scheduled.' );
 				} else {
@@ -302,7 +309,18 @@ class pb_backupbuddy_destination_dropbox2 { // Ends with destination slug.
 				
 				// Schedule next chunk to send.
 				pb_backupbuddy::status( 'details', 'Dropbox (PHP 5.3+) scheduling send of next part(s).' );
-				backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'destination_send' ), array( $chunked_destination_settings, $files, $send_id ) );
+				
+				$cronTime = time();
+				$cronArgs = array( $chunked_destination_settings, $files, $send_id, false );
+				$cronHashID = md5( $cronTime . serialize( $cronArgs ) );
+				$cronArgs[] = $cronHashID;
+				
+				if ( false === backupbuddy_core::schedule_single_event( $cronTime, pb_backupbuddy::cron_tag( 'destination_send' ), $cronArgs ) ) {
+					pb_backupbuddy::status( 'error', 'Error #948844: Unable to schedule next Dropbox2 cron chunk.' );
+					return false;
+				} else {
+					pb_backupbuddy::status( 'details', 'Success scheduling next cron chunk.' );
+				}
 				spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 				update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 				pb_backupbuddy::status( 'details', 'Dropbox (PHP 5.3+) scheduled send of next part(s). Done for this cycle.' );

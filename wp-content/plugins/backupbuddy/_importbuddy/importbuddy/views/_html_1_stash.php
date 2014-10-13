@@ -4,18 +4,20 @@ $ITXAPI_URL = 'http://api.ithemes.com';
 					
 
 
-$credentials_form = new pb_backupbuddy_settings( 'pre_settings', false, 'step=1&upload=stash#pluginbuddy-tabs-stash' ); // name, savepoint|false, additional querystring
-
+$credentials_form = new pb_backupbuddy_settings( 'pre_settings', false, 'upload=stash#pluginbuddy-tabs-stash' ); // name, savepoint|false, additional querystring
+/*
 $credentials_form->add_setting( array(
 	'type'		=>		'hidden',
 	'name'		=>		'pass_hash',
 	'default'	=>		PB_PASSWORD,
 ) );
+
 $credentials_form->add_setting( array(
 	'type'		=>		'hidden',
 	'name'		=>		'options',
 	'default'	=>		htmlspecialchars( serialize( pb_backupbuddy::$options ) ),
 ) );
+*/
 
 $credentials_form->add_setting( array(
 	'type'		=>		'text',
@@ -37,6 +39,7 @@ if ( count( $settings_result ) == 0 ) { // No form submitted.
 	
 	echo $login_welcome;
 	$credentials_form->display_settings( 'Connect to Stash' );
+	
 } else { // Form submitted.
 	if ( count( $settings_result['errors'] ) > 0 ) { // Form errors.
 		echo $login_welcome;
@@ -131,14 +134,14 @@ if ( count( $settings_result ) == 0 ) { // No form submitted.
 					$backup_item[2],
 					$backup_item[3],
 					$backup_item[4],
-					'<form action="?step=1#pluginbuddy-tabs-server" method="POST">
+					'<form action="?#pluginbuddy-tabs-server" method="POST">
 						<input type="hidden" name="pass_hash" value="' . PB_PASSWORD . '">
 						<input type="hidden" name="upload" value="stash">
 						<input type="hidden" name="options" value="' . htmlspecialchars( serialize( pb_backupbuddy::$options ) ) . '">
 						<input type="hidden" name="link" value="' . $backup_item[0] . '">
 						<input type="hidden" name="itxapi_username" value="' . $itxapi_username . '">
 						<input type="hidden" name="itxapi_password" value="' . $itxapi_password . '">
-						<input type="submit" name="submit" value="Import" class="button-primary">
+						<input type="submit" name="submit" value="Select" class="button-primary">
 					</form>
 					'
 				);
@@ -152,7 +155,6 @@ if ( count( $settings_result ) == 0 ) { // No form submitted.
 				_e( 'You have not sent any backups to Stash yet (or files are still transferring).', 'it-l10n-backupbuddy' );
 				echo '</b>';
 			} else {
-				echo 'Select a backup to import from Stash:<br><br>';
 				pb_backupbuddy::$ui->list_table(
 					$backup_list,
 					array(
@@ -173,6 +175,7 @@ if ( count( $settings_result ) == 0 ) { // No form submitted.
 	}
 	
 } // end form submitted.
+
 ?>
 
 <br><br>

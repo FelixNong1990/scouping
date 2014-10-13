@@ -27,7 +27,7 @@ if ( pb_backupbuddy::_GET( 'database_replace' ) == '1' ) {
 	?>
 	<script type="text/javascript">
 			function pb_status_append( status_string ) {
-				target_id = 'pb_backupbuddy_status'; // importbuddy_status or pb_backupbuddy_status
+				target_id = 'backupbuddy_messages'; // importbuddy_status or pb_backupbuddy_status
 				if( jQuery( '#' + target_id ).length == 0 ) { // No status box yet so suppress.
 					return;
 				}

@@ -32,37 +32,8 @@ $pluginbuddy_settings = array(
 				'series'			=>		'',
 				'default_options'	=>		array(
 												'bb_version'				=>	PB_BB_VERSION,	// BB version to be filled in on download.
-												
-												'display_mode'				=>	'normal', // normal, embed, or api
-												
-												'step'						=>	1,
-												'max_execution_time'		=>	30,
-												'dat_file'					=>	array(),
-												
-												'skip_files'				=>	false,
-												'wipe_database'				=>	false,
-												'wipe_database_all'			=>	false,
-												'skip_database_import'		=>	false,
-												'mysqlbuddy_compatibility'	=>	false,
-												'skip_database_migration'	=>	false,
-												'skip_database_bruteforce'	=>	false,
-												'skip_htaccess'				=>	false,
-												'force_compatibility_medium'=>	false,
-												'force_compatibility_slow'	=>	false,
-												'force_high_security'		=>	false,
-												'show_php_warnings'			=>	false,
-												'ignore_sql_errors'			=>	false,
-												
-												'siteurl'					=>	'',
-												'home'						=>	'',
-												'domain'					=>	'',		//	(multisite)
-												'db_server'					=>	'',
-												'db_user'					=>	'',
-												'db_password'				=>	'',
-												'db_name'					=>	'',
-												'db_prefix'					=>	'',
-												
-												'log_level'					=>	'1',						// Level of error logging.
+												'log_level'					=>	'3',						// Level of error logging. ImportBuddy ALWAYS logs at level 3 (everything).
+												'backup_directory'			=>	'',
 											),
 				'modules'			=>		array(
 												'updater'				=>	false,						// Load PluginBuddy automatic upgrades.

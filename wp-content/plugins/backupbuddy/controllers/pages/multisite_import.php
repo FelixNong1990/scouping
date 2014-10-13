@@ -128,6 +128,8 @@ class pluginbuddy_ms_import {
 	}
 	
 	function load_backup_dat() {
+		pb_backupbuddy::anti_directory_browsing( backupbuddy_core::getTempDirectory(), $die = false );
+		
 		$dat_file = $this->import_options[ 'extract_to' ] . '/' . str_replace( ABSPATH, '', backupbuddy_core::getTempDirectory() ) . $this->import_options[ 'zip_id' ] . '/backupbuddy_dat.php';
 		$this->_backupdata = $this->get_backup_dat( $dat_file );
 	}

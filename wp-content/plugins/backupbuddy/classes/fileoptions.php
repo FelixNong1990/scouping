@@ -53,7 +53,6 @@ class pb_backupbuddy_fileoptions {
 	 *
 	 */
 	function __construct( $file, $read_only = false, $ignore_lock = false, $create_file = false ) {
-		
 		$this->_file = $file;
 		$this->_read_only = $read_only;
 		
@@ -87,8 +86,8 @@ class pb_backupbuddy_fileoptions {
 	 */
 	function __destruct() {
 		
-		// IMPORTANT: We can NOT rely on any outside classes from here on out such as the framework status method.
-		$this->unlock();
+		// IMPORTANT: We can NOT rely on any outside classes from here on out such as the framework status method. Pass true to unlock to insure it does not perform any status logging.
+		$this->unlock( $destructorCalled = true );
 		
 	} // End __destruct().
 	
@@ -123,7 +122,7 @@ class pb_backupbuddy_fileoptions {
 		
 		// Handle locked file.
 		if ( ( false === $ignore_lock ) && ( true === $this->is_locked() ) ) {
-			pb_backupbuddy::status( 'warning', 'Warning #54555. Unable to read fileoptions file `' . $this->_file . '` as it is currently locked.' );
+			pb_backupbuddy::status( 'warning', 'Warning #54555. Unable to read fileoptions file `' . $this->_file . '` as it is currently locked. Lock file ID: ' . $this->_last_seen_lock_id . '.' );
 			$this->_is_ok = 'ERROR_LOCKED';
 			return false;
 		}
@@ -256,19 +255,30 @@ class pb_backupbuddy_fileoptions {
 	 */
 	private function _lock() {
 		
+		$lockFile = $this->_file . '.lock';
+		
 		if ( true === $this->_read_only ) {
 			pb_backupbuddy::status( 'error', 'Attempted to lock fileoptions while in readonly mode; denied.' );
 			return false;
 		}
 		
-		$handle = @fopen( $this->_file . '.lock', 'x' );
-		if ( false === $handle ) {
-			if ( file_exists( $this->_file . '.lock' ) ) {
-				pb_backupbuddy::status( 'error', 'Unable to create fileoptions lock file as it already exists: `' . $this->_file . '.lock`.' );
+		$handle = @fopen( $lockFile, 'x' );
+		if ( false === $handle ) { // Failed creating file.
+			if ( file_exists( $lockFile ) ) {
+				$this->_last_seen_lock_id = @file_get_contents( $lockFile );
+				pb_backupbuddy::status( 'error', 'Unable to create fileoptions lock file as it already exists: `' . $lockFile . '`. Lock file ID: ' . $this->_last_seen_lock_id . '.' );
 			} else {
-				pb_backupbuddy::status( 'error', 'Unable to create fileoptions lock file `' . $this->_file . '.lock`. Verify permissions on this directory.' );
+				pb_backupbuddy::status( 'error', 'Unable to create fileoptions lock file `' . $lockFile . '`. Verify permissions on this directory.' );
 			}
 			return false;
+		} else { // Created file.
+			$lockID = uniqid( '', true );
+			if ( false === @fwrite( $handle, $lockID ) ) {
+				pb_backupbuddy::status( 'warning', 'Unable to write unique lock ID `' . $lockID . '` to lock file `' . $lockFile . '`.' );
+			} else {
+				pb_backupbuddy::status( 'details', 'Created fileoptions lock file `' . $lockFile . '` with ID: ' . $lockID . '.' );
+			}
+			@fclose( $handle );
 		}
 		
 	}
@@ -278,24 +288,29 @@ class pb_backupbuddy_fileoptions {
 	/* unlock()
 	 *
 	 * Unlock file.
+	 * WARNING!!! IMPORTANT!!! We cannot reliably call pb_backupbuddy::status() here _IF_ calling via destructor, $destructorCalled = true.
 	 *
+	 * @param		bool	$destructorCalled		Whether or not this function was called via the destructor. See warning in comments above.
 	 * @return		bool	true on unlock success, else false.
 	 *
 	 */
-	public function unlock() {
+	public function unlock( $destructorCalled = false ) {
 		
-		if ( file_exists( $this->_file . '.lock' ) ) { // Locked; continue to unlock;
-			$result = unlink(  $this->_file . '.lock' );
+		$lockFile = $this->_file . '.lock';
+		
+		if ( file_exists( $lockFile ) ) { // Locked; continue to unlock;
+			$this->_last_seen_lock_id = @file_get_contents( $lockFile );
+			$result = unlink(  $lockFile );
 			if ( true === $result ) {
+				if ( false === $destructorCalled ) {
+					pb_backupbuddy::status( 'details', 'Unlocked fileoptions lock file `' . $lockFile . '` with lock ID `' . $this->_last_seen_lock_id . '`.' );
+				}
 				return true;
 			} else {
 				if ( class_exists( 'pb_backupbuddy' ) ) {
-					pb_backupbuddy::status( 'error', 'Unable to delete fileoptions lock file `' . $this->_file . '.lock`. Verify permissions on this file / directory.' );
-					/*
-					if ( file_exists( $this->_file . '.lock' ) ) { // Locked; continue to unlock;
-					} else {
+					if ( false === $destructorCalled ) {
+						pb_backupbuddy::status( 'error', 'Unable to delete fileoptions lock file `' . $lockFile . '` with lock ID `' . $this->_last_seen_lock_id . '`. Verify permissions on this file / directory.' );
 					}
-					*/
 				}
 				return false;
 			}
@@ -316,7 +331,10 @@ class pb_backupbuddy_fileoptions {
 	 */
 	public function is_locked() {
 		
-		if ( file_exists( $this->_file . '.lock' ) ) {
+		$lockFile = $this->_file . '.lock';
+		
+		if ( file_exists( $lockFile ) ) {
+			$this->_last_seen_lock_id = @file_get_contents( $lockFile );
 			return true;
 		} else {
 			return false;

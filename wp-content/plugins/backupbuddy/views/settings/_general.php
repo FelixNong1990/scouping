@@ -8,6 +8,10 @@ if ( !is_admin() ) { die( 'Access Denied.' ); }
 			jQuery( '.pb_backupbuddy_customize_email_scheduled_start_row' ).slideToggle();
 			return false;
 		});
+		jQuery( '.pb_backupbuddy_customize_send_finish' ).click( function() {
+			jQuery( '.pb_backupbuddy_customize_email_send_finish_row' ).slideToggle();
+			return false;
+		});
 		jQuery( '.pb_backupbuddy_customize_email_scheduled_complete' ).click( function() {
 			jQuery( '.pb_backupbuddy_customize_email_scheduled_complete_row' ).slideToggle();
 			return false;
@@ -22,7 +26,7 @@ if ( !is_admin() ) { die( 'Access Denied.' ); }
 				function(data) {
 					data = jQuery.trim( data );
 					if ( data.charAt(0) != '1' ) {
-						alert( '<?php _e('Error testing', 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
+						alert( '<?php _e("Error testing", 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
 					} else {
 						alert( "<?php _e('Email has been sent. If you do not receive it check your WordPress & server settings.', 'it-l10n-backupbuddy' ); ?>" + "\n\n" + data.slice(1) );
 					}
@@ -33,7 +37,7 @@ if ( !is_admin() ) { die( 'Access Denied.' ); }
 		
 	});
 	
-	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data ) {
+	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after, mode ) {
 		window.location.href = '<?php echo pb_backupbuddy::page_url(); ?>&custom=remoteclient&destination_id=' + destination_id;
 	}
 </script>

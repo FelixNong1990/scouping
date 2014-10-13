@@ -29,6 +29,9 @@
 .pluginbuddy_tip img {
 	vertical-align: -2px;
 }
+.form-table span.description {
+	display: inline !important;
+}
 /* Scrollable text for displaying default dirs, etc. */
 .pb_scroll {
 	display: inline-block;

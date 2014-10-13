@@ -1,5 +1,5 @@
 <?php
-pb_backupbuddy::$ui->title( 'Site Migration' );
+pb_backupbuddy::$ui->title( 'Remote Site Migration' );
 
 
 
@@ -186,24 +186,31 @@ if ( $destination['type'] == 'local' ) {
 		}
 	}
 } else { // FTP
-	$www_example = $destination['address'];
-	$www_example = str_replace( 'ftp://', '', $www_example );
-	$www_example = str_replace( 'ftp.', '', $www_example );
-	$www_example = rtrim( $www_example, '/' );
-	$www_example = 'http://' . $www_example;
 	
-	$www_example_dir = $destination['path'];
-	$www_example_dir = str_replace( '/www/', '', $www_example_dir );
-	$www_example_dir = str_replace( '/htdocs/', '', $www_example_dir );
-	$www_example_dir = str_replace( '/public_html/', '', $www_example_dir );
-	$www_example_dir = ltrim( $www_example_dir, '/' );
-
-	$guess_url = $www_example . '/' . $www_example_dir;
+	$guess_url = 'Unknown; No URL specified in FTP destination settings.';
+	$destination_url = '';
+	if ( isset( $destination['address'] ) && ( isset( $destination['path'] ) ) ) {
 		
-	if ( $guess_url != 'Unknown' ) {
-		$destination_url = $guess_url;
-	} else {
-		$destination_url = '';
+		$www_example = $destination['address'];
+		$www_example = str_replace( 'ftp://', '', $www_example );
+		$www_example = str_replace( 'ftp.', '', $www_example );
+		$www_example = rtrim( $www_example, '/' );
+		$www_example = 'http://' . $www_example;
+		
+		$www_example_dir = $destination['path'];
+		$www_example_dir = str_replace( '/www/', '', $www_example_dir );
+		$www_example_dir = str_replace( '/htdocs/', '', $www_example_dir );
+		$www_example_dir = str_replace( '/public_html/', '', $www_example_dir );
+		$www_example_dir = ltrim( $www_example_dir, '/' );
+
+		$guess_url = $www_example . '/' . $www_example_dir;
+			
+		if ( $guess_url != 'Unknown' ) {
+			$destination_url = $guess_url;
+		} else {
+			$destination_url = '';
+		}
+		
 	}
 }
 
@@ -256,6 +263,6 @@ if ( $destination['type'] == 'local' ) {
 
 <div id="pb_backupbuddy_migrate">
 	<?php //pb_backupbuddy::$ui->start_metabox( 'Migration', true, 'width: 100%;' ); ?>
-	<iframe id="pb_backupbuddy_iframe" src="" width="750" height="1800" frameBorder="0">Error #4584594579. Browser not compatible with iframes.</iframe>
+	<iframe id="pb_backupbuddy_iframe" src="" width="100%" height="2800" frameBorder="0">Error #4584594579. Browser not compatible with iframes.</iframe>
 	<?php //pb_backupbuddy::$ui->end_metabox(); ?>
 </div>

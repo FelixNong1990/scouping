@@ -19,7 +19,7 @@ class Ithemes_Sync_Verb_Backupbuddy_List_Schedules extends Ithemes_Sync_Verb {
 		$arguments = Ithemes_Sync_Functions::merge_defaults( $arguments, $this->default_arguments );
 		
 		$status = 'error';
-		$schedules = backupbuddy_api0::getSchedules();
+		$schedules = backupbuddy_api::getSchedules();
 		if ( false !== $schedules ) {
 			$status = 'ok';
 		}

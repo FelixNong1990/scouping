@@ -549,11 +549,15 @@ jQuery(document).ready(function($) {
 	$('script').last().attr('id','test');
 	
 
-    $('#chimpy_lite_widget_field_EMAIL').keydown(function(event){
+    $('#chimpy_widget_field_EMAIL').keydown(function(event){
 		if(event.keyCode == 13) {
 			event.preventDefault();
 			return false;
 		}
 	});
+	
+	// setTimeout(function() {
+		// $(window).resize();
+	// }, 2000);
 
 });

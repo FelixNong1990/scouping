@@ -42,7 +42,7 @@ class pb_backupbuddy {
 
 	// Controller objects. See: /controllers/ directory.
 	private static $_actions;					// Controller for WordPress actions.
-	private static $_ajax;						// Controller for WordPress AJAX actions.
+	public static $_ajax;						// Controller for WordPress AJAX actions.
 	private static $_cron;						// Controller for WordPress scheduled crons.
 	private static $_dashboard;					// Controller for WordPress admin dashboard items.
 	private static $_filters;					// Controller for WordPress filters.
@@ -173,7 +173,7 @@ class pb_backupbuddy {
 	 *	@return		string					URL for AJAX.
 	 */
 	public static function ajax_url( $tag ) {
-		return admin_url('admin-ajax.php') . '?action=pb_' . self::settings( 'slug' ) . '_' . $tag;
+		return admin_url('admin-ajax.php') . '?action=pb_' . self::settings( 'slug' ) . '_backupbuddy&function=' . $tag;
 	} // End ajax_url().
 	
 	
@@ -357,7 +357,11 @@ class pb_backupbuddy {
 		self::$options = self::_get_option( 'pb_' . self::settings( 'slug' ) );
 		
 		// Merge defaults into temporary $options variable and save if it differs with the pre-merge options.
-		$options = array_merge( (array)self::settings( 'default_options' ), (array)self::$options );
+		if ( empty( self::$options ) ) {
+			$options = (array)self::settings( 'default_options' );
+		} else {
+			$options = array_merge( (array)self::settings( 'default_options' ), (array)self::$options );
+		}
 		if ( self::$options !== $options ) {
 			self::$options = $options;
 			self::save();
@@ -661,6 +665,7 @@ class pb_backupbuddy {
 	 *	Logs data to a CSV file. Optional unique serial identifier.
 	 *	If a serial is passed then EVERYTHING will be logged to the specified serial file in addition to whatever (if anything) is logged to main status file.
 	 *	Always logs to main status file based on logging settings whether serial is passed or not.
+	 *	NOTE: When full logging is on AND a serial is passed, it will be written to a _sum_ text file instead of the main log file.
 	 *
 	 *	@see self::get_status().
 	 *
@@ -683,18 +688,7 @@ class pb_backupbuddy {
 			$serials = array( $serials );
 		}
 		
-		global $pb_backupbuddy_js_status;
-		if ( defined( 'PB_IMPORTBUDDY' ) || ( isset( $pb_backupbuddy_js_status ) && ( $pb_backupbuddy_js_status === true ) ) ) {
-			$status = pb_backupbuddy::$format->date( time() ) . "\t" .
-						sprintf( "%01.2f", round( microtime( true ) - pb_backupbuddy::$start_time, 2 ) ) . "\t" .
-						sprintf( "%01.2f", round( memory_get_peak_usage() / 1048576, 2 ) ) . "\t" .
-						$type . "\t" .
-						str_replace( chr(9), '   ', $message )
-					;
-			$status = str_replace( '\\', '/', $status );
-			echo '<script type="text/javascript">pb_status_append("' . str_replace( "\n", '\n', str_replace( '"', '&quot;', $status ) ) . '");</script>';
-			pb_backupbuddy::flush();
-		}
+		
 		
 		if ( defined( 'BACKUPBUDDY_WP_CLI' ) && ( true === BACKUPBUDDY_WP_CLI ) ) {
 			if ( class_exists( 'WP_CLI' ) ) {
@@ -711,6 +705,9 @@ class pb_backupbuddy {
 		}
 		
 		foreach( $serials as $serial ) {
+			// Calculate log directory.
+			$log_directory = backupbuddy_core::getLogDirectory(); // Also handles when within importbuddy.
+			
 			// Determine whether writing to main file.
 			$write_main = false;
 			if ( self::$options['log_level'] == 0 ) { // No logging.
@@ -725,6 +722,12 @@ class pb_backupbuddy {
 				self::log( '[' . $serial . '] ' . $message, $type );
 			}
 			
+			if ( ( '' != $serial ) ) { // Has a serial so redirect log to this specific item instead of core log.
+				$main_file = $log_directory . 'status-' . $serial . '_sum_' . self::$options['log_serial'] . '.txt';
+			} else { // Normal main file.
+				$main_file = $log_directory . 'status-' . self::$options['log_serial'] . '.txt';
+			}
+			
 			// Determine whether writing to serial file. Ignores log level.
 			if ( $serial != '' ) {
 				$write_serial = true;
@@ -736,9 +739,6 @@ class pb_backupbuddy {
 			if ( ( $write_main !== true )  && ( $write_serial !== true ) ) {
 				return;
 			}
-			
-			// Calculate log directory.
-			$log_directory = backupbuddy_core::getLogDirectory(); // Also handles when within importbuddy.
 			
 			// Prepare directory for log files. Return if unable to do so.
 			if ( true === self::$_skiplog ) { // bool true so skip.
@@ -791,9 +791,14 @@ class pb_backupbuddy {
 				'data'		=> str_replace( chr(9), '   ', $message ), // Body of the message.
 			);
 			
+			global $pb_backupbuddy_js_status;
+			if ( defined( 'PB_IMPORTBUDDY' ) || ( isset( $pb_backupbuddy_js_status ) && ( $pb_backupbuddy_js_status === true ) ) ) {
+				echo '<script>pb_status_append( ' . json_encode( $content_array ) . ' );</script>' . "\n";
+				pb_backupbuddy::flush();
+			}
+			
 			/********** MAIN LOG FILE **********/
 			if ( $write_main === true ) { // WRITE TO MAIN LOG FILE.
-				$main_file = $log_directory . 'status-' . self::$options['log_serial'] . '.txt';
 				write_status_line( $main_file, $content_array, $echoNotWrite );
 			}
 			
@@ -1634,7 +1639,7 @@ class pb_backupbuddy {
 	 *
 	 */
 	public static function flush() {
-		if ( defined( 'BACKUPBUDDY_NOFLUSH' ) && BACKUPBUDDY_NOFLUSH === true ) { // Some servers seem to die on multiple flushes in the same pageload. Define this to prevent flushing.
+		if ( defined( 'BACKUPBUDDY_NOFLUSH' ) && ( BACKUPBUDDY_NOFLUSH === true ) ) { // Some servers seem to die on multiple flushes in the same pageload. Define this to prevent flushing.
 			return;
 		}
 		if ( isset( pb_backupbuddy::$options ) && ( isset( pb_backupbuddy::$options['prevent_flush'] ) ) && ( '1' == pb_backupbuddy::$options['prevent_flush'] ) ) {

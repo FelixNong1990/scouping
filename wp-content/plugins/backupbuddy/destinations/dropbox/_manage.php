@@ -1,5 +1,5 @@
 <?php
-pb_backupbuddy::$ui->title( 'Dropbox' );
+//pb_backupbuddy::$ui->title( 'Dropbox' );
 
 require_once( pb_backupbuddy::plugin_path() . '/destinations/dropbox/lib/dropbuddy/dropbuddy.php' );
 $dropbuddy = new pb_backupbuddy_dropbuddy( $destination['token'] );
@@ -60,19 +60,19 @@ if ( is_array( $meta_data['contents'] ) ) {
 }
 
 // Copy dropbox backups to the local backup files
-if ( !empty( $_GET['copy_file'] ) ) {
-	pb_backupbuddy::alert( sprintf( _x('The remote file is now being copied to your %1$slocal backups%2$s', '%1$s and %2$s are open and close <a> tags', 'it-l10n-backupbuddy' ), '<a href="' . pb_backupbuddy::page_url() . '">', '</a>. If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.' ) );
+if ( !empty( $_GET['cpy_file'] ) ) {
+	pb_backupbuddy::alert( __( 'The remote file is now being copied to your local backups. If the backup gets marked as bad during copying, please wait a bit then click the `Refresh` icon to rescan after the transfer is complete.', 'it-l10n-backupbuddy' ) );
 	pb_backupbuddy::status( 'details',  'Scheduling Cron for creating Dropbox copy.' );
-	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_dropbox_copy' ), array( $_GET['destination_id'], $_GET['copy_file'] ) );
+	backupbuddy_core::schedule_single_event( time(), pb_backupbuddy::cron_tag( 'process_dropbox_copy' ), array( $_GET['destination_id'], $_GET['cpy_file'] ) );
 	spawn_cron( time() + 150 ); // Adds > 60 seconds to get around once per minute cron running limit.
 	update_option( '_transient_doing_cron', 0 ); // Prevent cron-blocking for next item.
 }
 
-echo '<h3>', __('Viewing', 'it-l10n-backupbuddy' ),' `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
+//stecho '<h3>', __('Viewing', 'it-l10n-backupbuddy' ),' `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
 ?>
 
-<div style="max-width: 950px;">
-<form id="posts-filter" enctype="multipart/form-data" method="post" action="<?php echo pb_backupbuddy::page_url() . '&custom=' . $_GET['custom'] . '&destination_id=' . $_GET['destination_id'];?>">
+<div>
+<form id="posts-filter" enctype="multipart/form-data" method="post" action="<?php echo pb_backupbuddy::ajax_url( 'remoteClient' ) . '&custom=' . pb_backupbuddy::_GET('custom') . '&destination_id=' . pb_backupbuddy::_GET('destination_id');?>">
 	<div class="tablenav">
 		<div class="alignleft actions">
 			<input type="submit" name="delete_file" value="<?php _e('Delete from Dropbox', 'it-l10n-backupbuddy' );?>" class="button-secondary delete" />
@@ -131,7 +131,7 @@ echo '<h3>', __('Viewing', 'it-l10n-backupbuddy' ),' `' . $destination['title'] 
 								<?php echo pb_backupbuddy::$format->file_size( $file['bytes'] ); ?>
 							</td>
 							<td>
-								<?php echo '<a href="' . pb_backupbuddy::page_url() . '&custom=' . $_GET['custom'] . '&destination_id=' . $_GET['destination_id'] . '&#38;copy_file=' . $file['path'] . '">',__('Copy to local', 'it-l10n-backupbuddy' ), '</a>'; ?>
+								<?php echo '<a href="' . pb_backupbuddy::ajax_url( 'remoteClient' ) . '&custom=' . pb_backupbuddy::_GET('custom') . '&destination_id=' . pb_backupbuddy::_GET('destination_id') . '&#38;cpy_file=' . $file['path'] . '">',__('Copy to local', 'it-l10n-backupbuddy' ), '</a>'; ?>
 							</td>
 						</tr>
 						<?php

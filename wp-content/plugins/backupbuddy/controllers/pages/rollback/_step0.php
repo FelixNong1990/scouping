@@ -3,7 +3,6 @@
 if ( ! current_user_can( pb_backupbuddy::$options['role_access'] ) ) {
 	die( 'Error #473623. Access Denied.' );
 }
-pb_backupbuddy::load_script( 'jquery' );
 
 
 require_once( pb_backupbuddy::plugin_path() . '/classes/restore.php' );
@@ -20,7 +19,7 @@ $restoreData = $rollback->getState();
 ?>
 
 
-<?php _e( "This will roll back this site's database to the state contained within the selected backup file. Verify the backup details below to make sure this is the correct backup to roll back to and then follow the instructions on screen to roll back. This typically only takes a few minutes and you will be given the opportunity to test the changes and undo them before making them permanent. Tip: Create a Database or Full Backup before proceeding.", 'it-l10n-backupbuddy' ); ?>
+<?php _e( "This will roll back this site's database to the state contained within the selected backup file. Verify details below to make sure this is the correct database to roll back to. Current database tables will be a given a temporary prefix.  You will be given the opportunity to confirm changes before making them permanent. <b>Tip!</b> Create a Database or Full Backup before proceeding.", 'it-l10n-backupbuddy' ); ?>
 <br><br>
 
 
@@ -71,7 +70,7 @@ pb_backupbuddy::$ui->list_table(
 
 
 <br><br>
-<form id="pb_backupbuddy_rollback_form" method="post" action="?action=pb_backupbuddy_rollback&step=1&archive=<?php echo basename( $restoreData['archive'] ); ?>">
+<form id="pb_backupbuddy_rollback_form" method="post" action="?action=pb_backupbuddy_backupbuddy&function=rollback&step=1&archive=<?php echo basename( $restoreData['archive'] ); ?>">
 	<?php pb_backupbuddy::nonce(); ?>
 	<input type="hidden" name="restoreData" value="<?php echo base64_encode( serialize( $restoreData ) ); ?>">
 	<input type="submit" name="submitForm" class="button button-primary" value="<?php echo __('Begin Rollback') . ' &raquo;'; ?>">

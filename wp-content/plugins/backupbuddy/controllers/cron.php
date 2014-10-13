@@ -73,14 +73,44 @@ class pb_backupbuddy_cron extends pb_backupbuddy_croncore {
 	 *	@param		string		$send_id					Index ID of remote_sends associated with this send (if any).
 	 *	@return		null
 	 */
-	public function destination_send( $destination_settings, $files, $send_id = '' ) {
+	public function destination_send( $destination_settings, $files, $send_id = '', $delete_after = false, $identifier = '' ) {
+		
+		pb_backupbuddy::status( 'details', 'Beginning cron destination_send. Unique ID: `' . $identifier . '`.' );
+		if ( '' != $identifier ) {
+			$lockFile = backupbuddy_core::getLogDirectory() . 'cronSend-' . $identifier . '.lock';
+			pb_backupbuddy::anti_directory_browsing( backupbuddy_core::getTempDirectory(), $die = false );
+			
+			if ( @file_exists( $lockFile ) ) { // Lock exists already. Duplicate run?
+				$attempts = @file_get_contents( $lockFile );
+				$attempts++;
+				pb_backupbuddy::status( 'warning', 'Lock file exists and now shows ' . $attempts . ' attempts.' );
+				$attempts = @file_get_contents( $lockFile, $attempts );
+				return;
+			} else { // No lock yet.
+				if ( false === @file_put_contents( $lockFile, '1' ) ) {
+					pb_backupbuddy::status( 'warning', 'Unable to create destination send lock file `' . $lockFile . '`.' );
+				} else {
+					pb_backupbuddy::status( 'details', 'Create destination send lock file `' . $lockFile . '`.' );
+				}
+			}
+		}
 		
 		pb_backupbuddy::status( 'details', 'Launching destination send via cron.' );
 		if ( ! class_exists( 'backupbuddy_core' ) ) {
 			require_once( pb_backupbuddy::plugin_path() . '/classes/core.php' );
 		}
-		backupbuddy_core::destination_send( $destination_settings, $files, $send_id );
-		//send_remote_destination( $destination_id, $file, $trigger = '', $send_importbuddy = false, $delete_after = false )
+		
+		if ( true === backupbuddy_core::destination_send( $destination_settings, $files, $send_id, $delete_after ) ) { // completely finished, go ahead and clean up lock file.
+			/* DO not delete here as we need to keep this locked down a little longer...
+			if ( '' != $identifier ) {
+				if ( true === @unlink( $lockFile ) ) {
+					pb_backupbuddy::status( 'details', 'Removed destination lock file.' );
+				} else {
+					pb_backupbuddy::status( 'warning', 'Unable to remove destination lock file `' . $lockFile . '`.' );
+				}
+			}
+			*/
+		}
 		
 	} // End destination_send().
 	

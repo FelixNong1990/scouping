@@ -1,9 +1,15 @@
 <?php
+$default_tab = 0;
+if ( is_numeric( pb_backupbuddy::_GET( 'tab' ) ) ) {
+	$default_tab = pb_backupbuddy::_GET( 'tab' );
+}
+
+
 wp_enqueue_script( 'thickbox' );
 wp_print_scripts( 'thickbox' );
 wp_print_styles( 'thickbox' );
 
-pb_backupbuddy::disalert( 'backup_stash_advert', 'Active BackupBuddy customers already have a <b>BackupBuddy Stash</b> account with <span class="pb_label pb_label">1 GB Free Storage</span>. Just login on the <a href="?page=pb_backupbuddy_destinations">Remote Destinations</a> page.' );
+//pb_backupbuddy::disalert( 'backup_stash_advert', 'Active BackupBuddy customers already have a <b>BackupBuddy Stash</b> account with <span class="pb_label pb_label">1 GB Free Storage</span>. Just login on the <a href="?page=pb_backupbuddy_destinations">Remote Destinations</a> page.' );
 ?>
 
 
@@ -53,13 +59,13 @@ jQuery(window).load(function() {
 
 
 <script type="text/javascript">
-	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data ) {
+	function pb_backupbuddy_selectdestination( destination_id, destination_title, callback_data, delete_after, mode ) {
 		if ( callback_data != '' ) {
 			jQuery.post( '<?php echo pb_backupbuddy::ajax_url( 'remote_send' ); ?>', { destination_id: destination_id, destination_title: destination_title, file: callback_data, trigger: 'manual' }, 
 				function(data) {
 					data = jQuery.trim( data );
 					if ( data.charAt(0) != '1' ) {
-						alert( '<?php _e('Error starting remote send', 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
+						alert( '<?php _e("Error starting remote send", 'it-l10n-backupbuddy' ); ?>:' + "\n\n" + data );
 					} else {
 						alert( "<?php _e('Your file has been scheduled to be sent now. It should arrive shortly.', 'it-l10n-backupbuddy' ); ?> <?php _e( 'You will be notified by email if any problems are encountered.', 'it-l10n-backupbuddy' ); ?>" + "\n\n" + data.slice(1) );
 					}
@@ -87,38 +93,20 @@ jQuery(window).load(function() {
 
 
 <?php
-pb_backupbuddy::$ui->title( __( 'Remote Destinations', 'it-l10n-backupbuddy' ) );
+pb_backupbuddy::$ui->title( __( 'Remote Destinations', 'it-l10n-backupbuddy' ) . ' <a href="javascript:void(0)" class="add-new-h2" onClick="jQuery(\'.backupbuddy-destination-sends\').toggle()">View recently sent files</a>' ); //  . ' <a href="javascript:void(0)" class="add-new-h2">Add New</a>' )
 echo '<div style="width: 100%;">';
 _e( 'BackupBuddy supports many remote destinations which you may transfer backups to.  You may manually send backups to these locations or automatically have them sent for scheduled backups. You may view the files in a remote destination by selecting a destination below once created. In addition to viewing files, you may copy remote backups to your server, and delete files.  All subscribed BackupBuddy customers are provided <b>free</b> storage to our own BackupBuddy Stash cloud destination.', 'it-l10n-backupbuddy' );
-echo '</div>';
-
-echo '<br><br>';
-pb_backupbuddy::$ui->start_tabs(
-	'destinations',
-	array(
-		array(
-			'title'		=>		'Remote Destinations',
-			'slug'		=>		'destinations',
-		),
-		array(
-			'title'		=>		'Recently Transferred Files',
-			'slug'		=>		'transfers',
-		),
-	),
-	'width: 100%;'
-);
+echo '</div><br><br>';
 
 
-pb_backupbuddy::$ui->start_tab( 'destinations' );
-echo '<iframe id="pb_backupbuddy_iframe" src="' . pb_backupbuddy::ajax_url( 'destination_picker' ) . '&action_verb=to%20manage%20files" width="100%" style="max-width: 850px;" height="1800" frameBorder="0">Error #4584594579. Browser not compatible with iframes.</iframe>';
-pb_backupbuddy::$ui->end_tab();
+echo '<div class="backupbuddy-destination-sends" style="display: none;"><br>';
+require_once( 'server_info/remote_sends.php' );
+echo '<br></div>';
 
 
-pb_backupbuddy::$ui->start_tab( 'transfers' );
-	echo '<div style="margin-left: 0px;">';
-		require_once( 'server_info/remote_sends.php' );
-	echo '</div>';
-pb_backupbuddy::$ui->end_tab();
+echo '<iframe id="pb_backupbuddy_iframe" src="' . pb_backupbuddy::ajax_url( 'destinationTabs' ) . '&tab=' . $default_tab . '&action_verb=to%20manage%20files" width="100%" height="4000" frameBorder="0">Error #4584594579. Browser not compatible with iframes.</iframe>';
+
+
 ?>
 
 <br style="clear: both;"><br style="clear: both;">
@@ -129,5 +117,3 @@ if ( !wp_script_is( 'media-upload' ) ) {
 	wp_enqueue_script( 'media-upload' );
 	wp_print_scripts( 'media-upload' );
 }
-?>
-</div>

@@ -2,7 +2,7 @@
 // Authored by Dustin Bolton - Summer 2013.
 // Incoming variables: $destination
 
-pb_backupbuddy::$ui->title( 'sFTP' );
+//pb_backupbuddy::$ui->title( 'sFTP' );
 
 require_once( pb_backupbuddy::plugin_path() . '/destinations/sftp/init.php' );
 pb_backupbuddy_destination_sftp::_init();
@@ -57,6 +57,7 @@ if ( pb_backupbuddy::_POST( 'bulk_action' ) == 'delete_backup' ) {
 	} else {
 		pb_backupbuddy::alert( __('No backups were deleted.', 'it-l10n-backupbuddy' ) );
 	}
+	echo '<br>';
 }
 
 
@@ -132,7 +133,7 @@ unset( $backup_list_temp );
 
 
 
-echo '<h3>', __('Viewing', 'it-l10n-backupbuddy' ), ' `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
+//echo '<h3>', __('Viewing', 'it-l10n-backupbuddy' ), ' `' . $destination['title'] . '` (' . $destination['type'] . ')</h3>';
 
 
 // Render table listing files.
@@ -144,7 +145,7 @@ if ( count( $backup_list ) == 0 ) {
 	pb_backupbuddy::$ui->list_table(
 		$backup_list,
 		array(
-			'action'		=>	pb_backupbuddy::page_url() . '&custom=remoteclient&destination_id=' . htmlentities( pb_backupbuddy::_GET( 'destination_id' ) ) . '&remote_path=' . htmlentities( pb_backupbuddy::_GET( 'remote_path' ) ),
+			'action'		=>	$urlPrefix . '&remote_path=' . htmlentities( pb_backupbuddy::_GET( 'remote_path' ) ),
 			'columns'		=>	array( 'Backup File', 'Uploaded <img src="' . pb_backupbuddy::plugin_url() . '/images/sort_down.png" style="vertical-align: 0px;" title="Sorted most recent first">', 'File Size', 'Type' ),
 			//'hover_actions'	=>	array( 'copy' => 'Copy to Local' ),
 			'hover_action_column_key'	=>	'0',

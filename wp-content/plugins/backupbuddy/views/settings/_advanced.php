@@ -69,6 +69,17 @@ $settings_form->add_setting( array(
 	'rules'		=>		'required',
 ) );
 $settings_form->add_setting( array(
+	'type'		=>		'select',
+	'name'		=>		'default_backup_tab',
+	'title'		=>		__('Default backup tab', 'it-l10n-backupbuddy' ),
+	'options'	=>		array(
+								'0'		=>		__( 'Overview', 'it-l10n-backupbuddy' ),
+								'1'		=>		__( 'Status Log', 'it-l10n-backupbuddy' ),
+							),
+	'tip'		=>		sprintf( __('[Default: Overview] - The default tab open during a backup is the overview tab. A more technical view is available in the Status tab.', 'it-l10n-backupbuddy' ) ),
+	'rules'		=>		'required',
+) );
+$settings_form->add_setting( array(
 	'type'		=>		'text',
 	'name'		=>		'max_site_log_size',
 	'title'		=>		__('Maximum log file size', 'it-l10n-backupbuddy' ),
@@ -147,6 +158,16 @@ $settings_form->add_setting( array(
 	'rules'		=>		'required',
 ) );
 $settings_form->add_setting( array(
+	'type'		=>		'checkbox',
+	'name'		=>		'backup_cron_rescheduling',
+	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
+	'title'		=>		__('Reschedule missing crons in manual backups', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__('[Default: disabled] - To proceed to subsequent steps during backups BackupBuddy schedules the next step with the WordPress cron system.  If this cron goes missing the backup cannot proceed. This feature instructs BackupBuddy to attempt to re-schedule this cron as it occurs.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'',
+	'after'		=>		'<span class="description"> ' . __( 'Check if directed by support.', 'it-l10n-backupbuddy' ) . '</span>',
+	'rules'		=>		'required',
+) );
+$settings_form->add_setting( array(
 	'type'		=>		'select',
 	'name'		=>		'backup_mode',
 	'title'		=>		__('Default global backup mode', 'it-l10n-backupbuddy' ),
@@ -177,32 +198,43 @@ $settings_form->add_setting( array(
 	'orientation' =>	'vertical',
 ) );
 $settings_form->add_setting( array(
-	'type'		=>		'checkbox',
-	'name'		=>		'breakout_tables',
-	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
-	'title'		=>		__( 'Break out big table dumps into steps', 'it-l10n-backupbuddy' ),
-	'tip'		=>		__( '[Default: Disabled] Currently in beta. Breaks up some commonly known database tables to be backed up separately rather than all at once. Helps with larger databases.', 'it-l10n-backupbuddy' ) . '</span>',
-	'css'		=>		'',
-	'after'		=>		'<span class="description"> ' . __( 'Backup large data tables in separate steps for handling large databases.', 'it-l10n-backupbuddy' ) . '</span>',
+	'type'		=>		'select',
+	'name'		=>		'database_method_strategy',
+	'title'		=>		__('Database method strategy', 'it-l10n-backupbuddy' ),
+	'options'	=>		array(
+		'php'			=>		__( 'PHP-based: Supports automated chunked resuming - default', 'it-l10n-backupbuddy' ),
+		'commandline'	=>		__( 'Commandline: Fast but does not support resuming', 'it-l10n-backupbuddy' ),
+		'all'			=>		__( 'All Available: ( PHP [chunking] > Commandline via exec()  )', 'it-l10n-backupbuddy' ),
+	),
+	'tip'		=>		__('[Default: PHP-based] - Normally use PHP-based which supports chunking (as of BackupBuddy v5) to support larger databases. Commandline-based database dumps use mysqldump which is very fast and efficient but cannot be broken up into smaller steps if it is too large which could result in timeouts on larger servers.', 'it-l10n-backupbuddy' ),
 	'rules'		=>		'required',
 ) );
 $settings_form->add_setting( array(
 	'type'		=>		'checkbox',
-	'name'		=>		'force_mysqldump_compatibility',
+	'name'		=>		'breakout_tables',
 	'options'	=>		array( 'unchecked' => '0', 'checked' => '1' ),
-	'title'		=>		__('Force compatibility mode database dump', 'it-l10n-backupbuddy' ),
-	'tip'		=>		__('[Default: disabled] - WARNING: This forces the potentially slower mode of database dumping. Under normal circumstances mysql dump compatibility mode is automatically entered as needed without user intervention.', 'it-l10n-backupbuddy' ),
+	'title'		=>		__( 'Break out big table dumps into steps', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__( '[Default: enabled] When enabled, BackupBuddy will dump some of the commonly larger tables in separate steps. Note this only applies to command-line based dumps as PHP-based dumps automatically support chunking with resume on table and/or row as needed.', 'it-l10n-backupbuddy' ) . '</span>',
 	'css'		=>		'',
-	'after'		=>		'<span class="description"> ' . __( 'Forces PHP-based database dump instead of command line. Pre-v3.x mode.', 'it-l10n-backupbuddy' ) . '</span>',
+	'after'		=>		'<span class="description"> ' . __( 'Commandline method: Break up dumping of big tables (chunking)', 'it-l10n-backupbuddy' ) . '</span>',
 	'rules'		=>		'required',
 ) );
 $settings_form->add_setting( array(
 	'type'		=>		'text',
 	'name'		=>		'phpmysqldump_maxrows',
 	'title'		=>		__('Compatibility mode max rows per select', 'it-l10n-backupbuddy' ),
-	'tip'		=>		__('[Default: *blank*] - When BackupBuddy is using compatibility mdoe mysql dumping (via PHP), BackupBuddy selects data from the database. Reducing this number has BackupBuddy grab smaller portions from the database at a time. Leave blank to use built in default (around 2000 rows per select).', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__('[Default: *blank*] - When BackupBuddy is using compatibility mode mysql dumping (via PHP), BackupBuddy selects data from the database. Reducing this number has BackupBuddy grab smaller portions from the database at a time. Leave blank to use built in default (around 2000 rows per select).', 'it-l10n-backupbuddy' ),
 	'css'		=>		'width: 50px;',
-	'after'		=>		' rows. <span class="description"> ' . __( 'Blank for default.', 'it-l10n-backupbuddy' ) . ' (~2000 rows/select)</span>',
+	'after'		=>		' rows. <span class="description"> ' . __( 'Blank for default.', 'it-l10n-backupbuddy' ) . ' (~1000 rows/select)</span>',
+	'rules'		=>		'int',
+) );
+$settings_form->add_setting( array(
+	'type'		=>		'text',
+	'name'		=>		'max_execution_time',
+	'title'		=>		__('Maximum time per chunk', 'it-l10n-backupbuddy' ),
+	'tip'		=>		__('[Default: *blank*] - The maximum amount of time BackupBuddy should allow a database import chunk to run. BackupBuddy by default limits each chunk to your Maximum PHP runtime when using the default PHP-based method. If your database dump step is timing out then lowering this value will instruct the script to limit each `chunk` to allow it to finish within this time period. Raising this value above your servers limits will not increase or override server settings.', 'it-l10n-backupbuddy' ),
+	'css'		=>		'width: 50px;',
+	'after'		=>		' sec. <span class="description"> ' . __( 'Blank for detected default.', 'it-l10n-backupbuddy' ) . ' (' . backupbuddy_core::detectMaxExecutionTime() . ' sec)</span>',
 	'rules'		=>		'int',
 ) );
 $settings_form->add_setting( array(

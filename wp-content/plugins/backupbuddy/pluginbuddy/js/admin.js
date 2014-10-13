@@ -1,5 +1,16 @@
 jQuery(document).ready(function() {
 	
+	jQuery('.backupbuddy-do_bulk_action').click( function(){
+		thisForm = jQuery(this).closest('form');
+		if ( thisForm.find( '.check-all-entries:checked' ).length > 0 ) { // If any bulk action box is checked.
+			if ( ! confirm( 'Are you sure you want to do this to all selected items?' ) ) {
+				return false;
+			}
+		}
+	});
+	
+	
+	
 	jQuery('.pb_debug_show').click(function(e) {
 		jQuery(this).hide();
 		jQuery(this).parent().children( '.pb_debug_hide').show();

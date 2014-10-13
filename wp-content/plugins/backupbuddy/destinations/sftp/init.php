@@ -19,6 +19,7 @@ class pb_backupbuddy_destination_sftp {
 		'path'			=>		'',
 		'archive_limit'	=>		0,
 		'url'			=>		'',		// optional url for migration that corresponds to this sftp/path.
+		'disable_file_management'	=>		'0',		// When 1, _manage.php will not load which renders remote file management DISABLED.
 	);
 	
 	
@@ -75,7 +76,7 @@ class pb_backupbuddy_destination_sftp {
 		// Change to directory.
 		pb_backupbuddy::status( 'details', 'Attempting to change into directory...' );
 		if ( true === $sftp->chdir( $settings['path'] ) ) {
-			pb_backupbuddy::status( 'details', 'Changed into directory.' );
+			pb_backupbuddy::status( 'details', 'Changed into directory `' . $settings['path'] . '`. All uploads will be relative to this.' );
 		} else {
 			pb_backupbuddy::status( 'error', 'Unable to change into specified path. Verify the path is correct with valid permissions.' );
 			pb_backupbuddy::status( 'details', 'sFTP log (if available & enabled via full logging mode): `' . $sftp->getSFTPLog() . '`.' );
@@ -97,7 +98,7 @@ class pb_backupbuddy_destination_sftp {
 			$filesize = filesize( $file );
 			$total_transfer_size += $filesize;
 			
-			$destination_file = $settings['path'] . '/' . basename( $file );
+			$destination_file = basename( $file );
 			pb_backupbuddy::status( 'details', 'About to put to sFTP local file `' . $file . '` of size `' . pb_backupbuddy::$format->file_size( $filesize ) . '` to remote file `' . $destination_file . '`.' );
 			$send_time = -microtime( true );
 			$upload = $sftp->put( $destination_file, $file, NET_SFTP_LOCAL_FILE );
