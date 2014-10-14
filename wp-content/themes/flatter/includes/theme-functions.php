@@ -206,11 +206,12 @@ function fl_social_share() {
 	$social_url = urlencode(get_permalink($post->ID));
 	?>
 	<ul class="inner-social">								
-		<li><a class="twitter" href="javascript:void(0);" onclick="window.open('http://twitter.com/home?status=<?php echo urlencode($post->post_title); ?>:%0a<?php the_permalink(); ?> via @Scouping','twitter-share-dialog','width=670,height=436');return false;" rel="nofollow" target="_blank"><?php _e( 'Twitter', APP_TD ); ?></a></li>
-		<li><a class="facebook" href="javascript:void(0);" onclick="window.open('http://www.facebook.com/sharer.php?t=<?php echo $social_text; ?>&amp;u=<?php echo $social_url; ?>','doc', 'width=638,height=500,scrollbars=yes,resizable=auto');" rel="nofollow"><?php _e( 'Facebook', APP_TD ); ?></a></li>
-		<li><a class="pinterest" href="//pinterest.com/pin/create/button/?url=<?php echo $social_url; ?>&amp;media=<?php echo fl_get_store_image_url($post->ID, 'post_id', '180'); ?>&amp;description=<?php echo $social_text; ?>" data-pin-do="buttonPin" data-pin-config="beside" rel="nofollow" target="_blank"><?php _e( 'Pinterest', APP_TD ); ?></a></li>
-		<li><a class="digg" href="http://digg.com/submit?phase=2&amp;url=<?php echo $social_url; ?>&amp;title=<?php echo $social_text; ?>" rel="nofollow" target="_blank"><?php _e( 'Digg', APP_TD ); ?></a></li>
-		<li><a class="reddit" href="http://reddit.com/submit?url=<?php echo $social_url; ?>&amp;title=<?php echo $social_text; ?>" rel="nofollow" target="_blank"><?php _e( 'Reddit', APP_TD ); ?></a></li>
+		<li><a title="Share to Facebook" class="facebook" href="javascript:void(0);" onclick="window.open('http://www.facebook.com/sharer.php?t=<?php echo $social_text; ?>&amp;u=<?php echo $social_url; ?>','doc', 'width=638,height=500,scrollbars=yes,resizable=auto');" rel="nofollow"><?php _e( 'Facebook', APP_TD ); ?></a></li>
+		<li><a title="Share to Twitter" class="twitter" href="javascript:void(0);" onclick="window.open('http://twitter.com/home?status=<?php echo urlencode($post->post_title); ?>:%0a<?php the_permalink(); ?> via @Scouping','twitter-share-dialog','width=670,height=436');return false;" rel="nofollow" target="_blank"><?php _e( 'Twitter', APP_TD ); ?></a></li>
+		<li><a title="Share to Google+" class="googleplus" href="https://plus.google.com/share?url=<?php the_permalink(); ?>" onclick="javascript:window.open(this.href,'', 'menubar=no,toolbar=no,resizable=yes,scrollbars=yes,height=600,width=600');return false;" rel="nofollow" target="_blank"><i class="fa fa-facebook"></i> </a></li>
+		<!-- <li><a class="digg" href="http://digg.com/submit?phase=2&amp;url=<?php echo $social_url; ?>&amp;title=<?php echo $social_text; ?>" rel="nofollow" target="_blank"><?php _e( 'Digg', APP_TD ); ?></a></li> -->
+		<li><a title="Share to Reddit" class="reddit" href="http://reddit.com/submit?url=<?php echo $social_url; ?>&amp;title=<?php echo $social_text; ?>" rel="nofollow" target="_blank"><?php _e( 'Reddit', APP_TD ); ?></a></li>
+		<li><a title="Share to Pinterest" class="pinterest" href="//pinterest.com/pin/create/button/?url=<?php echo $social_url; ?>&amp;media=<?php echo fl_get_store_image_url($post->ID, 'post_id', '180'); ?>&amp;description=<?php echo $social_text; ?>" data-pin-do="buttonPin" data-pin-config="beside" rel="nofollow" target="_blank"><?php _e( 'Pinterest', APP_TD ); ?></a></li>
 		<!--<li><a class="rss" href="<?php //echo get_post_comments_feed_link(get_the_ID()); ?>" rel="nofollow"><?php //_e( 'Coupon Comments RSS', APP_TD ); ?></a></li>-->
 	</ul>
 	<?php 

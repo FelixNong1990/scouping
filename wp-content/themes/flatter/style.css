@@ -1982,6 +1982,10 @@ p.store {
 	content: "\f082";
 	color:#3B5998;
 }
+.inner-social li .googleplus:before {
+	content: "\f0d4";
+	color:#DB333A;
+}
 .inner-social li .pinterest:before {
 	content: "\f0d3";
 	color:#DB333A;
