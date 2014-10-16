@@ -1,0 +1,50 @@
+Jeff G
+Hello Felix. How may I help you?
+Felix
+Hello
+Jeff G
+Hello
+Felix
+How can I upload my files using SFTP through FileZilla?
+Jeff G
+one moment, looking for you settings
+Felix
+Ok
+Jeff G
+what is the email address associated with your hosting please
+Felix
+scouping@gmail.com
+nong0002@e.ntu.edu.sg
+sr the second 1
+Jeff G
+ok for sFTP settings. the username and password are the same as the cpanel login.
+You will use these settings to connect
+server/host trevor.asmallorange.com
+port 22
+sFTP
+Felix
+thanks, what's the logon type?
+Jeff G
+sFTP
+is the protocol
+Felix
+No, what I means is the logon type(normal or account)?
+Jeff G
+I am sorry, I do not know. you would need to reference the informationfor filezxilla for that. I apologize
+Felix
+Ok, how can I generate a host key?
+When I connect using above information, it said unknown host key
+Jeff G
+then you are not using the proper login type. you do not need a key
+9:59 am
+Felix
+Ok, thank you for your support, I'll come back later if I've any other enquiries :)
+Jeff G
+thank you for using live chat
+take care
+Felix
+Ok, you too, you can end the chat now
+Jeff G
+It is my pleasure to serve you. Take Care and Thank You for using Live Chat
+
+http://tinypic.com/r/10xzi1w/8
